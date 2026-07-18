@@ -8,7 +8,7 @@ Status legend: `[ ]` pending · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ---
 
-## M1 — Vite + Preact scaffold  `[ ]` priority: high
+## M1 — Vite + Preact scaffold  `[~]` priority: high
 
 Replace the single-file architecture with Vite + Preact + chessground.
 **No behavior change** — the app must work identically before and after.
@@ -16,6 +16,8 @@ Replace the single-file architecture with Vite + Preact + chessground.
 ### Scaffold & dependencies
 - [x] Scaffold Vite + Preact project in the repo root
 - [x] Move `stockfish.js` from `prototype/` into `public/`
+- [x] Initialize git repo + baseline commit (done 2026-07-18)
+- [x] Add ESLint 9 flat config + Prettier, Preact-compatible (done 2026-07-18)
 
 ### Centralized state (do before M4 — cheap now, expensive to retrofit)
 - [ ] Add `useReducer` + Preact Context at App level. Single state shape:
@@ -26,7 +28,7 @@ Replace the single-file architecture with Vite + Preact + chessground.
     ui: { activeTab } }
   ```
 - [ ] Pass dispatch via Context; components read only the slice they need.
-      No prop drilling through Board → TrainPanel → socratic.js.
+      No prop drilling through Board → Trainpanel → socratic.js.
 
 ### Engine module (Promise-based API)
 - [ ] `src/engine.js` — rewrite as a clean module with an explicit lifecycle:
@@ -38,14 +40,18 @@ Replace the single-file architecture with Vite + Preact + chessground.
   - Cancels in-flight search on next call (no global `analyzing` flag)
   - Worker path: `new Worker(new URL('stockfish.js', import.meta.url))`
 
-### Analyzer module (tested before ported)
-- [ ] Add vitest: `npm install -D vitest`, add `"test": "vitest"` to package.json
-- [ ] Write `src/analyzer.test.js` — 8 FENs covering all tactic types:
-  knight fork, bishop pin (absolute), rook skewer, discovered check,
-  double check, hanging piece threat, capture with check, quiet positional move
-- [ ] Port `analyzer.js` from `prototype/app.js`: `analyzeMove`, `attackedSquares`,
-      `findPinOrSkewer`, `isSquareDefended`, `fileRank`, `toSquare`, `findKingSquare`
-      — logic unchanged, just relocated. Tests must pass after port.
+### Analyzer module (tested before ported) — DONE 2026-07-18
+- [x] Add vitest: `npm install -D vitest`, add `"test": "vitest"` to package.json
+- [x] Port `analyzer.js` from `prototype/app.js` into `src/lib/analyzer.js`:
+      `analyzeMove`, `attackedSquares`, `findPinOrSkewer`, `isSquareDefended`,
+      `fileRank`, `toSquare`, `findKingSquare` — logic unchanged, relocated and
+      ported to chess.js 1.4 (`in_check()` → `inCheck()`).
+- [x] Write `src/lib/analyzer.test.js` — 15 tests covering all tactic types
+      (direct/discovered check, fork, pin, skewer, capture, threat, positional)
+      plus edge cases (promotion, empty from-square, illegal move, mate).
+      **Porting note discovered via tests:** chess.js 1.4 *throws* on invalid
+      moves (0.10.3 returned `null`). `analyzeMove` wraps `sim.move()` in
+      `try/catch` to preserve the null-on-illegal contract callers expect.
 
 ### UI components
 - [ ] `src/app.css` — all styles (dark theme, layout, tabs)
@@ -71,14 +77,14 @@ and an error boundary. No new features. Safety checkpoint before all later work.
 
 ---
 
-## M2 — Cburnett piece theme  `[ ]` priority: medium
+## M2 — Cburnett piece theme  `[x]` priority: medium
 
 chessground ships with Cburnett built in — this is now a CSS import.
 
-- [ ] Import `chessground/assets/chessground.cburnett.css` in `Board.jsx`
-- [ ] Remove `pieceDataUri` and `PIECE_GLYPHS` from the old `app.js` (or
-      confirm they don't exist in the new codebase)
-- [ ] Add Cburnett attribution (CC-BY-SA) to README (already done — verify)
+- [x] Import `chessground/assets/chessground.cburnett.css` in `Board.jsx`
+- [x] Remove `pieceDataUri` and `PIECE_GLYPHS` from the new codebase (never
+      ported — only existed in `prototype/app.js`)
+- [x] Add Cburnett attribution (CC-BY-SA) to README (done — verified 2026-07-18)
 - [ ] Verify rendering at the board's display size; check both colors
 
 ---
@@ -265,6 +271,11 @@ motifs. Full M3 content work comes after the training loop is solid.
       2026-07-18. See ARCHITECTURE.md §5.
 - [x] **Promotion picker:** included in M4. chessground's `events.promotion`
       callback makes it straightforward. See ARCHITECTURE.md §6.
+- [x] **Test/lint/format tooling:** Vitest (Vite-native) + ESLint 9 flat
+      config + Prettier. Decided 2026-07-18. Preact is treated as
+      React-compatible for the react/react-hooks plugins; JSX runtime is
+      automatic (no `import React`). Added before porting the analyzer so the
+      port could be test-first.
 
 ## Open questions (decide at the relevant milestone)
 

@@ -122,32 +122,40 @@ itself a pattern-recognition exercise.
 
 ## 4. Analyzer tests (vitest)
 
-**Decision:** `src/analyzer.test.js` with 8 FENs, set up before porting the
-analyzer in M1.
+**Decision:** `src/lib/analyzer.test.js` with 15 tests, written test-first
+before porting the analyzer from the prototype. **Done 2026-07-18.**
 
-**Why now:** The analyzer is ~150 lines of pure functions — deterministic,
+**Why first:** The analyzer is ~150 lines of pure functions — deterministic,
 no DOM, no engine. It's the easiest code in the project to test and the most
 consequential when it breaks. If `analyzeMove` misclassifies a fork as
 "positional", every downstream feature (auto-tagging, recognition step, hint
 category) silently degrades.
 
-**Test cases:**
+**Test coverage (current):**
 
-| Test | FEN characteristic |
+| Tactic | FEN characteristic |
 |---|---|
-| Knight fork | Knight lands on a square attacking two pieces |
-| Bishop pin (absolute) | Bishop pins a piece to the king |
-| Rook skewer | Rook attacks a piece with a more valuable piece behind |
+| Direct check | Move delivers check from the moved piece |
 | Discovered check | Moving piece uncovers check from another |
-| Double check | Moving piece gives check while uncovering a second check |
-| Hanging piece threat | Move creates an undefended threat |
-| Capture with check | Simple capture that also delivers check |
+| Knight fork | Knight lands on a square attacking two pieces |
+| Pin to king | Sliding piece pins an enemy piece to the king |
+| Skewer | Sliding piece attacks a weaker front piece with a stronger one behind |
+| Capture | Move captures an enemy piece |
+| Hanging-piece threat | Move attacks an undefended enemy piece |
 | Quiet positional move | No tactic detected — verifies the "no tactic" path |
 
-**Setup:** `npm install -D vitest`, add `"test": "vitest"` to package.json.
-Run with `npm test`. Each test: construct a `Chess` instance from FEN, make
-the tactic move, call `analyzeMove(newFen, move)`, assert the expected
-tactic category.
+Plus edge cases: promotion move, empty from-square (returns null), illegal
+move (returns null), and a checkmating move. Plus unit tests on the geometry
+helpers (`attackedSquares`, `findPinOrSkewer`).
+
+**Porting finding (chess.js 1.4 behavior change):** The test-first approach
+caught a real porting hazard. chess.js 0.10.3 (used by the prototype)
+returned `null` from `Chess.move()` on an illegal move; chess.js 1.4
+**throws**. The analyzer's `if (!moveResult) return null` defensive path
+would have silently broken on any illegal/garbage input. Fixed in
+`src/lib/analyzer.js` by wrapping `sim.move()` in `try/catch` to preserve
+the null-on-illegal contract callers rely on. This is the kind of finding
+that justified doing foundations before the port.
 
 ---
 
@@ -272,34 +280,41 @@ unhandled error in any component.
 
 ---
 
-## 8. File layout (current state)
+## 8. File layout (current state, updated 2026-07-18)
+
+Files marked **(M1)** exist now; files marked **(planned)** don't yet —
+they're the target layout from the milestones below. See `TODO.md` for which
+milestone each planned file belongs to.
 
 ```
 app_tactics_coach/
-  index.html              Vite entry point
-  package.json            preact, chessground, chess.js, vite
-  vite.config.js
+  index.html              Vite entry point (M1)
+  package.json            preact, chessground, chess.js, vite; vitest/eslint/prettier (M1)
+  vite.config.js          (M1)
+  eslint.config.js        ESLint 9 flat config, Preact-compatible (M1)
+  .prettierrc.json        (M1)
   src/
-    main.jsx              Preact render entry
-    app.jsx               top-level component, tabs, Context provider
-    app.css               all styles (dark theme, layout, tabs)
-    index.css             reset / base styles
-    Board.jsx             chessground wrapper component
-    TrainPanel.jsx        Train tab: FEN input, side toggle, hint flow
-    engine.js             Promise-based Stockfish worker API
-    analyzer.js           tactic detection (ported from v0.1)
-    analyzer.test.js      vitest test suite (8 FENs)
-    socratic.js           Train-mode staged flow (Stages 0–4)
-    motifs.js             motif definitions + example FENs (data)
-    motifs-view.js        Motifs reference tab rendering
-    storage.js            localStorage CRUD: positions + attempts
-    library.js            Library view rendering
+    main.jsx              Preact render entry (M1)
+    app.jsx               top-level component, tabs (M1; Context provider planned)
+    app.css               all styles (dark theme, layout, tabs) (M1)
+    index.css             reset / base styles (M1)
+    Board.jsx             chessground wrapper component (M1)
+    TrainPanel.jsx        Train tab: FEN input, side toggle, hint button (M1, partial)
+    lib/
+      analyzer.js         tactic detection, ported from v0.1 (M1)
+      analyzer.test.js    vitest suite, 15 tests (M1)
+    engine.js             Promise-based Stockfish worker API (planned, M1)
+    socratic.js           Train-mode staged flow, Stages 0–4 (planned, M4)
+    motifs.js             motif definitions + example FENs (planned, M3)
+    motifs-view.js        Motifs reference tab rendering (planned, M3)
+    storage.js            localStorage CRUD: positions + attempts (planned, M6)
+    library.js            Library view rendering (planned, M8)
   public/
-    stockfish.js          Stockfish 10 (GPL-3.0), served as static asset
+    stockfish.js          Stockfish 10 (GPL-3.0), served as static asset (M1)
   prototype/              original v0.1 single-file app (preserved for reference)
     index.html            old jQuery + chessboard.js app
     app.js                old app logic
-    stockfish.js          Stockfish 10 (same file as public/)
+    stockfish.js          Stockfish 10 (byte-identical to public/ — known wart)
     REVIEW_BY_GLM52.md    code review of the v0.1 codebase
   ARCHITECTURE.md         this file
   README.md               user-facing docs

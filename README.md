@@ -14,6 +14,8 @@ captures, pins, forks, threats) instead of just naming a piece.
 | Board | **chessground** (lichess.org) | No jQuery. Built-in move dots, last-move highlight, Cburnett piece theme. GPL-3.0. |
 | Game logic | **chess.js** | Move validation, FEN parsing, in_check, game_over. MIT. |
 | Engine | **Stockfish 10** (stockfish.js, Web Worker) | GPL-3.0. Unmodified. |
+| Tests | **Vitest** | Vite-native test runner. Covers the tactic analyzer. |
+| Lint/format | **ESLint 9 + Prettier** | Flat config, Preact-compatible. |
 
 No CDN dependencies, no jQuery. Everything is `npm install` + `import`.
 
@@ -48,6 +50,31 @@ python3 -m http.server 8000 -d dist/
 
 The engine (`stockfish.js`) is loaded as a Web Worker — browsers block
 workers on `file://`, so always serve over HTTP.
+
+## Development
+
+```bash
+npm test           # run the vitest suite in watch mode
+npm run test:run   # run once (for CI)
+npm run lint       # eslint on src/
+npm run format     # prettier --write on src/
+```
+
+The tactic analyzer (`src/lib/analyzer.js`) is the only code with test
+coverage today — 15 tests across all detected tactic types. Run them before
+touching anything chess-logic-related.
+
+## Current status
+
+The app is mid-migration from the `prototype/` (working v0.1, jQuery +
+chessboard.js) to a Preact + Vite + chessground rewrite in `src/`. The
+rewrite is at **milestone M1**: the board renders, FEN input works, and the
+tactic analyzer is ported and tested. Not yet wired up: the Stockfish engine
+module, the Socratic hint flow, the Motifs and Library tabs.
+
+The **"Using it"** flow below describes the *target* UX. The working
+`prototype/index.html` behaves this way today; the `src/` app will once M4
+(the Socratic Train flow) lands.
 
 ## Using it
 
