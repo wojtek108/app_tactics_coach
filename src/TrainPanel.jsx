@@ -2,8 +2,8 @@ import { useState } from 'preact/hooks';
 
 const SIDES = [
   { value: 'fen', label: 'From FEN' },
-  { value: 'w',   label: 'White to move' },
-  { value: 'b',   label: 'Black to move' },
+  { value: 'w', label: 'White to move' },
+  { value: 'b', label: 'Black to move' },
 ];
 
 export function TrainPanel({ onLoad, onFlip }) {
@@ -36,7 +36,7 @@ export function TrainPanel({ onLoad, onFlip }) {
         id="fenInput"
         placeholder="Paste FEN here (from Lichess/Chess.com)"
         value={fenInput}
-        onInput={e => setFenInput(e.target.value)}
+        onInput={(e) => setFenInput(e.target.value)}
       />
 
       <div class="side-toggle">
@@ -47,7 +47,7 @@ export function TrainPanel({ onLoad, onFlip }) {
               name="side"
               value={value}
               checked={side === value}
-              onChange={e => setSide(e.target.value)}
+              onChange={(e) => setSide(e.target.value)}
             />
             {label}
           </label>
@@ -63,9 +63,7 @@ export function TrainPanel({ onLoad, onFlip }) {
         </button>
       </div>
 
-      <button class="btn-hint">
-        I need a hint
-      </button>
+      <button class="btn-hint">I need a hint</button>
 
       <div id="message" class={messageError ? 'error' : ''}>
         {message}

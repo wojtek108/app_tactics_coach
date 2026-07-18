@@ -12,7 +12,7 @@ export function App() {
   const [activeTab, setActiveTab] = useState('Train');
 
   const handleFlip = useCallback(() => {
-    setOrientation(o => o === 'white' ? 'black' : 'white');
+    setOrientation((o) => (o === 'white' ? 'black' : 'white'));
   }, []);
 
   const handlePositionLoad = useCallback((newFen, side) => {
@@ -25,16 +25,11 @@ export function App() {
     <div class="app">
       <h1>♟ Socratic Chess Coach</h1>
 
-      <Board
-        fen={fen}
-        orientation={orientation}
-        lastMove={lastMove}
-        onMove={setLastMove}
-      />
+      <Board fen={fen} orientation={orientation} lastMove={lastMove} onMove={setLastMove} />
 
       <div class="panel">
         <div class="tabs">
-          {TABS.map(tab => (
+          {TABS.map((tab) => (
             <button
               key={tab}
               class={`tab-btn ${activeTab === tab ? 'active' : ''}`}
@@ -45,12 +40,7 @@ export function App() {
           ))}
         </div>
 
-        {activeTab === 'Train' && (
-          <TrainPanel
-            onLoad={handlePositionLoad}
-            onFlip={handleFlip}
-          />
-        )}
+        {activeTab === 'Train' && <TrainPanel onLoad={handlePositionLoad} onFlip={handleFlip} />}
 
         {activeTab === 'Motifs' && (
           <div style="text-align:center; padding:40px; color:#666;">
