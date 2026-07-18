@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Socratic Chess Coach</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
+    <style>
+        body { font-family: sans-serif; background: #121212; color: #eee; display: flex; flex-direction: column; align-items: center; padding-top: 24px; }
+        h1 { margin: 0 0 18px 0; font-size: 1.4em; letter-spacing: 0.5px; color: #fff; }
+        #board { width: 400px; }
+        .panel { width: 400px; background: #1e1e1e; padding: 20px; border-radius: 8px; margin-top: 15px; box-sizing: border-box; }
+        input[type="text"] { width: 100%; padding: 10px; margin-bottom: 10px; background: #000; color: #0f0; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; font-family: monospace; }
+        .side-toggle { display: flex; gap: 14px; margin-bottom: 12px; font-size: 0.85em; color: #ccc; }
+        .side-toggle label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+        .btn-row { display: flex; gap: 8px; }
+        button { padding: 12px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; margin-bottom: 8px; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-main { flex: 2; background: #2e7d32; color: white; }
+        .btn-flip { flex: 1; background: #444; color: white; }
+        .btn-hint { width: 100%; background: #1565c0; color: white; display: none; }
+        #status { font-size: 0.8em; color: #aaa; margin-bottom: 5px; min-height: 14px; }
+        #message { margin-top: 15px; min-height: 50px; text-align: center; color: #ffca28; font-weight: bold; }
+        #message.error { color: #ef5350; }
+    </style>
+</head>
+<body>
+    <h1>♟ Socratic Chess Coach</h1>
+    <div id="board"></div>
+    <div class="panel">
+        <div id="status">Status: Loading engine…</div>
+        <input type="text" id="fenInput" placeholder="Paste FEN here (from Lichess/Chess.com)">
+        <div class="side-toggle">
+            <label><input type="radio" name="side" value="fen" checked> From FEN</label>
+            <label><input type="radio" name="side" value="w"> White to move</label>
+            <label><input type="radio" name="side" value="b"> Black to move</label>
+        </div>
+        <div class="btn-row">
+            <button class="btn-main" id="loadBtn" onclick="startSession()" disabled>Load Position</button>
+            <button class="btn-flip" onclick="flipBoard()">⇅ Flip</button>
+        </div>
+        <button id="hintBtn" class="btn-hint" onclick="giveHint()">I need a hint</button>
+        <div id="message">Waiting for the engine to start up…</div>
+    </div>
+
+    <!-- Third-party libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
+    <!-- App logic (this repo's own files — keep them next to this HTML file) -->
+    <script src="app.js"></script>
+</body>
+</html>
