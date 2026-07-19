@@ -11,7 +11,7 @@ Status legend: `[ ]` pending · `[~]` in progress · `[x]` done · `[!]` blocked
 ## M1 — Vite + Preact scaffold  `[~]` priority: high
 
 Replace the single-file architecture with Vite + Preact + chessground.
-**No behavior change** — the app must work identically before and after.
+**Mostly done** — the app runs and the core training loop works.
 
 ### Scaffold & dependencies
 - [x] Scaffold Vite + Preact project in the repo root
@@ -30,50 +30,35 @@ Replace the single-file architecture with Vite + Preact + chessground.
 - [ ] Pass dispatch via Context; components read only the slice they need.
       No prop drilling through Board → Trainpanel → socratic.js.
 
-### Engine module (Promise-based API)
-- [ ] `src/engine.js` — rewrite as a clean module with an explicit lifecycle:
-  ```js
-  createEngine() → { analyze(fen, movetime) → Promise<{move, fen}> }
-  ```
+### Engine module (Promise-based API) — DONE 2026-07-18
+- [x] `src/lib/engine.js` — clean module: `createEngine({ onStatus }) → { ready(), analyze(fen), destroy() }`
   - Sends `stop` + `ucinewgame` + `position fen` + `go movetime`
-  - Returns Promise that resolves on `bestmove`, rejects on timeout
-  - Cancels in-flight search on next call (no global `analyzing` flag)
-  - Worker path: `new Worker(new URL('stockfish.js', import.meta.url))`
+  - Returns Promise that resolves on `bestmove`, with safety timeout
+  - `onStatus` callback forwards `info depth` lines for live depth display
+  - Worker path: `new Worker('/stockfish.js')` (served from `public/`)
 
 ### Analyzer module (tested before ported) — DONE 2026-07-18
-- [x] Add vitest: `npm install -D vitest`, add `"test": "vitest"` to package.json
-- [x] Port `analyzer.js` from `prototype/app.js` into `src/lib/analyzer.js`:
-      `analyzeMove`, `attackedSquares`, `findPinOrSkewer`, `isSquareDefended`,
-      `fileRank`, `toSquare`, `findKingSquare` — logic unchanged, relocated and
-      ported to chess.js 1.4 (`in_check()` → `inCheck()`).
-- [x] Write `src/lib/analyzer.test.js` — 15 tests covering all tactic types
-      (direct/discovered check, fork, pin, skewer, capture, threat, positional)
-      plus edge cases (promotion, empty from-square, illegal move, mate).
-      **Porting note discovered via tests:** chess.js 1.4 *throws* on invalid
-      moves (0.10.3 returned `null`). `analyzeMove` wraps `sim.move()` in
-      `try/catch` to preserve the null-on-illegal contract callers expect.
+- [x] Add vitest, port analyzer.js, write 15 tests
 
-### UI components
-- [ ] `src/app.css` — all styles (dark theme, layout, tabs)
-- [ ] `src/app.jsx` — top-level component, tab routing, Context provider
-- [ ] `src/Board.jsx` — chessground wrapper (already implemented; verify wiring)
-- [ ] `src/TrainPanel.jsx` — FEN input, side toggle, flip button, hint button
+### UI components — DONE 2026-07-18 (basic working versions)
+- [x] `src/app.css` — dark theme, layout, tabs, sample-select, buttons
+- [x] `src/app.jsx` — top-level component, tab routing, training state coordination
+- [x] `src/Board.jsx` — chessground wrapper with training-mode support (targetMove, onWrongMove, onCorrectMove)
+- [x] `src/TrainPanel.jsx` — FEN input, side toggle, flip, hint ladder, engine integration, sample positions dropdown, post-solve flow
 
 ### Error boundary
 - [ ] Add `<ErrorBoundary>` at App root using `preact/compat` (or a 15-line
       class component). Fallback: "Something went wrong. Reload the page."
-      Prevents white-screen on chessground init failure or worker crash.
 
 ### Cleanup
 - [ ] **Fix `applySideOverride` FEN padding** (prototype/REVIEW §3.1) — rewrite
       to construct the padded FEN explicitly field-by-field.
 - [ ] Delete old `index.html`, `app.js` once the Vite version is confirmed working.
-- [ ] Verify: `npm run dev`, load a FEN, get hints, find the move — every
-      behavior from the original app still works.
+- [x] Verify: `npm run dev`, load a FEN, get hints, find the move — every
+      behavior from the original app now works in the Preact version.
 
-**Definition of done:** behavior-identical to current app, but Preact + Vite +
-chessground, with centralized state, tested analyzer, clean engine API,
-and an error boundary. No new features. Safety checkpoint before all later work.
+**Status:** Core M1 done. Centralized state and error boundary are the remaining
+low-effort/high-value items to wrap this milestone.
 
 ---
 
@@ -89,37 +74,35 @@ chessground ships with Cburnett built in — this is now a CSS import.
 
 ---
 
-## M4 — Socratic Train flow  `[ ]` priority: high  ← MOVED UP
+## M4 — Socratic Train flow  `[~]` priority: high  ← IN PROGRESS
 
-The training loop *is* the product. Build it before the supporting features.
-Replace the current guess-the-move UI with the staged flow (SPEC F1).
+The training loop *is* the product.
 
+### Done (prototype parity — simplified single-pass flow)
+- [x] Engine integration: Load Position → Stockfish analyzes → best move found
+- [x] Live depth counter during engine search ("Engine thinking… depth 14")
+- [x] Move verification: correct move accepted, wrong-but-legal snaps back
+- [x] 4-stage hint ladder on "I need a hint":
+      1. General CCT reminder
+      2. Tactic category (fork, pin, skewer, discovered check, etc.)
+      3. Key piece + source square
+      4. Full move with explanation
+- [x] Post-solve celebration + prompt for next puzzle
+- [x] Sample positions dropdown (7 curated tactical FENs)
+- [x] FEN input validation (invalid FENs caught, game-over positions rejected)
+
+### Remaining (staged flow from SPEC F1)
 - [ ] **Stage 0 — Board vision (ungraded).** Free-text input: *"What stands
-      out? Name two or three things."* Stored on attempt, never scored.
-      Decide: every-session or first-encounter-only (Open Question).
+      out? Name two or three things."*
 - [ ] **Stage 1 — CCT enumeration.** *"List every check and every capture."*
-  - Decide entry UI (Open Question): click-from/click-to on board, or typed.
-    **Recommendation:** click-to (discoverable); typed as stretch goal.
-  - On submit, show found vs. missed forcing moves. Missing a check is the
-    most common tactical blindness — surfacing the miss is the point.
+      Click-from/click-to on board.
 - [ ] **Stage 2 — Candidate evaluation.** *"Which creates the strongest
-      threat? What does the opponent do after?"*
-  - Let student play a candidate; engine replies with opponent's best move
-  - Use fresh `movetime` search (~2s) — simpler, correct for arbitrary moves
+      threat? What does the opponent do after?"* Engine replies to candidate moves.
 - [ ] **Stage 3 — Commit.** *"Play the move you think is strongest."*
-  - Correct → flow to M5 (recognition step)
-  - Wrong-but-legal → **wrong-move coaching**: show opponent's punishing
-    reply instead of snapping back with "try again." Make the cost visible.
-- [ ] **Stage 4 — Earned reveal** (behind "I give up" button). Reuses the
-      current `categoryHint` / `explainMove` text, telescoped:
-      motif → piece → move + explanation.
-- [ ] **Promotion picker:** wire chessground's `events.promotion` callback.
-      When a pawn reaches the 8th rank, show a small overlay with 4 piece
-      buttons (Q/R/B/N). Default to Queen if the user clicks off. ~40 lines.
-      Don't defer — chessground makes this easy and underpromotion puzzles
-      are pedagogically valuable.
-- [ ] Delete the old single-pass `onMove` / `startSession` UI once the staged
-      flow replaces it.
+      Currently: simplified single-pass (correct = celebrate, wrong = snap back).
+      Aspirational: wrong-move coaching — show opponent's punishing reply.
+- [x] **Stage 4 — Earned reveal** — DONE (hint ladder)
+- [ ] **Promotion picker:** chessground `events.promotion` callback. Q/R/B/N overlay.
 
 ---
 

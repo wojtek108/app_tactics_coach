@@ -68,22 +68,27 @@ touching anything chess-logic-related.
 
 The app is mid-migration from the `prototype/` (working v0.1, jQuery +
 chessboard.js) to a Preact + Vite + chessground rewrite in `src/`. The
-rewrite is at **milestone M1**: the board renders, FEN input works, and the
-tactic analyzer is ported and tested. Not yet wired up: the Stockfish engine
-module, the Socratic hint flow, the Motifs and Library tabs.
+rewrite is at **milestone M2/M3**: the board renders, FEN input works, the
+tactic analyzer is ported and tested, Stockfish is wired up, and the
+4-stage Socratic hint ladder is functional. A dropdown of sample tactical
+positions lets you start training immediately without pasting FENs.
 
-The **"Using it"** flow below describes the *target* UX. The working
-`prototype/index.html` behaves this way today; the `src/` app will once M4
-(the Socratic Train flow) lands.
+Still to do: the Motifs tab (tactical pattern reference), the Library tab
+(saved positions), and mobile-responsive layout.
+
+The **"Using it"** flow below describes the current UX. The `prototype/`
+has the full jQuery-based v0.1 for reference.
 
 ## Using it
 
 1. Wait for **Status: Engine ready**.
-2. Paste a FEN (from Lichess, Chess.com, or anywhere else).
+2. Pick a sample puzzle from the dropdown, or paste a FEN (from Lichess,
+   Chess.com, or anywhere else).
 3. Pick whose move it is with the **From FEN / White / Black** toggle if you
    want to override what the FEN says (useful when practicing a position
    from both sides).
-4. Click **Load Position**. The engine analyzes for up to ~4 seconds.
+4. Click **Load Position** (sample puzzles auto-load). The engine analyzes
+   for up to ~4 seconds. The status line shows live depth as it searches.
 5. Try to find the best move on the board. Legal-but-wrong moves snap back
    with a nudge to keep looking.
 6. Stuck? Click **I need a hint** — it escalates through four stages:
@@ -91,7 +96,9 @@ The **"Using it"** flow below describes the *target* UX. The working
    2. The specific *category* of tactic present (fork, pin, skewer, etc.)
    3. Which piece is the key one
    4. The full move, with an explanation of why it works
-7. **⇅ Flip** flips the board orientation at any time.
+7. When you find it, a celebration message appears and you can pick another
+   puzzle.
+8. **⇅ Flip** flips the board orientation at any time.
 
 ## Licensing
 

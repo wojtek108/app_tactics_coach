@@ -16,14 +16,27 @@ import 'chessground/assets/chessground.cburnett.css';
  * we try the move on a scratch game. Legal moves become lastMove[]
  * so the board gets a highlight; illegal pieces snap back.
  */
-export function Board({ fen, orientation, lastMove, onMove }) {
+/**
+ * targetMove  — UCI string (e.g. "e2e4"). When set, only this exact move
+ *               is accepted; all other legal moves snap back and call
+ *               onWrongMove.
+ * onWrongMove — called with (from, to) when the user makes a legal-but-wrong move
+ * onCorrectMove — called with (from, to) when the user finds the target move
+ */
+export function Board({ fen, orientation, lastMove, onMove, targetMove, onWrongMove, onCorrectMove }) {
   const containerRef = useRef(null);
   const cgRef = useRef(null);
   const fenRef = useRef(fen);
   const onMoveRef = useRef(onMove);
+  const targetMoveRef = useRef(targetMove);
+  const onWrongMoveRef = useRef(onWrongMove);
+  const onCorrectMoveRef = useRef(onCorrectMove);
 
   fenRef.current = fen;
-  onMoveRef.current = onMove; // always point to latest callback (avoids stale closure)
+  onMoveRef.current = onMove;
+  targetMoveRef.current = targetMove;
+  onWrongMoveRef.current = onWrongMove;
+  onCorrectMoveRef.current = onCorrectMove;
 
   // Compute legal move destinations for the selected piece
   function computeDests() {
@@ -54,12 +67,21 @@ export function Board({ fen, orientation, lastMove, onMove }) {
       drawable: { enabled: false },
       events: {
         move: (orig, dest) => {
-          // When the user drops, chessground has already moved the piece
-          // visually. We validate against chess.js. If illegal, we reset.
           const game = new Chess(fenRef.current);
           const move = game.move({ from: orig, to: dest, promotion: 'q' });
 
           if (move) {
+            // Legal move. If training with a target, check correctness.
+            if (targetMoveRef.current) {
+              const userMove = orig + dest;
+              // targetMove may have a 5th char for promotion (e.g. "e7e8q")
+              if (userMove !== targetMoveRef.current.slice(0, 4)) {
+                cg.set({ fen: fenRef.current });
+                if (onWrongMoveRef.current) onWrongMoveRef.current(orig, dest);
+                return;
+              }
+              if (onCorrectMoveRef.current) onCorrectMoveRef.current(orig, dest);
+            }
             const lm = [orig, dest];
             if (onMoveRef.current) onMoveRef.current(lm);
           } else {

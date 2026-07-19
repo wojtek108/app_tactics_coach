@@ -11,21 +11,47 @@ export function App() {
   const [lastMove, setLastMove] = useState(null);
   const [activeTab, setActiveTab] = useState('Train');
 
+  // Training mode state
+  const [targetMove, setTargetMove] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+  const [puzzleSolved, setPuzzleSolved] = useState(false);
+
   const handleFlip = useCallback(() => {
     setOrientation((o) => (o === 'white' ? 'black' : 'white'));
   }, []);
 
-  const handlePositionLoad = useCallback((newFen, side) => {
+  const handlePositionLoad = useCallback((newFen, side, engineMove) => {
     setFen(newFen);
     setOrientation(side === 'b' ? 'black' : 'white');
     setLastMove(null);
+    setTargetMove(engineMove || null);
+    setFeedback(null);
+    setPuzzleSolved(false);
+  }, []);
+
+  const handleWrongMove = useCallback(() => {
+    setFeedback({ text: "That's legal, but there's a much better way. Try again!", error: false });
+  }, []);
+
+  const handleCorrectMove = useCallback(() => {
+    setPuzzleSolved(true);
+    setTargetMove(null);
+    setFeedback(null);
   }, []);
 
   return (
     <div class="app">
       <h1>♟ Socratic Chess Coach</h1>
 
-      <Board fen={fen} orientation={orientation} lastMove={lastMove} onMove={setLastMove} />
+      <Board
+        fen={fen}
+        orientation={orientation}
+        lastMove={lastMove}
+        onMove={setLastMove}
+        targetMove={targetMove}
+        onWrongMove={handleWrongMove}
+        onCorrectMove={handleCorrectMove}
+      />
 
       <div class="panel">
         <div class="tabs">
@@ -40,7 +66,14 @@ export function App() {
           ))}
         </div>
 
-        {activeTab === 'Train' && <TrainPanel onLoad={handlePositionLoad} onFlip={handleFlip} />}
+        {activeTab === 'Train' && (
+          <TrainPanel
+            onLoad={handlePositionLoad}
+            onFlip={handleFlip}
+            feedback={feedback}
+            puzzleSolved={puzzleSolved}
+          />
+        )}
 
         {activeTab === 'Motifs' && (
           <div style="text-align:center; padding:40px; color:#666;">
