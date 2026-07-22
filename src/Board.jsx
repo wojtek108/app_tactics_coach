@@ -54,45 +54,49 @@ export function Board({ fen, orientation, lastMove, onMove, targetMove, onWrongM
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const cg = Chessground(containerRef.current, {
-      fen,
-      orientation,
-      lastMove: lastMove || undefined,
-      movable: {
-        color: orientation === 'white' ? 'white' : 'black',
-        dests: computeDests(),
-        free: false,
-      },
-      animation: { enabled: true, duration: 200 },
-      drawable: { enabled: false },
-      events: {
-        move: (orig, dest) => {
-          const game = new Chess(fenRef.current);
-          const move = game.move({ from: orig, to: dest, promotion: 'q' });
-
-          if (move) {
-            // Legal move. If training with a target, check correctness.
-            if (targetMoveRef.current) {
-              const userMove = orig + dest;
-              // targetMove may have a 5th char for promotion (e.g. "e7e8q")
-              if (userMove !== targetMoveRef.current.slice(0, 4)) {
-                cg.set({ fen: fenRef.current });
-                if (onWrongMoveRef.current) onWrongMoveRef.current(orig, dest);
-                return;
-              }
-              if (onCorrectMoveRef.current) onCorrectMoveRef.current(orig, dest);
-            }
-            const lm = [orig, dest];
-            if (onMoveRef.current) onMoveRef.current(lm);
-          } else {
-            // Illegal — reset the board state
-            cg.set({ fen: fenRef.current });
-          }
+    try {
+      const cg = Chessground(containerRef.current, {
+        fen,
+        orientation,
+        lastMove: lastMove || undefined,
+        movable: {
+          color: orientation === 'white' ? 'white' : 'black',
+          dests: computeDests(),
+          free: false,
         },
-      },
-    });
+        animation: { enabled: true, duration: 200 },
+        drawable: { enabled: false },
+        events: {
+          move: (orig, dest) => {
+            const game = new Chess(fenRef.current);
+            const move = game.move({ from: orig, to: dest, promotion: 'q' });
 
-    cgRef.current = cg;
+            if (move) {
+              // Legal move. If training with a target, check correctness.
+              if (targetMoveRef.current) {
+                const userMove = orig + dest;
+                // targetMove may have a 5th char for promotion (e.g. "e7e8q")
+                if (userMove !== targetMoveRef.current.slice(0, 4)) {
+                  cg.set({ fen: fenRef.current });
+                  if (onWrongMoveRef.current) onWrongMoveRef.current(orig, dest);
+                  return;
+                }
+                if (onCorrectMoveRef.current) onCorrectMoveRef.current(orig, dest);
+              }
+              const lm = [orig, dest];
+              if (onMoveRef.current) onMoveRef.current(lm);
+            } else {
+              // Illegal — reset the board state
+              cg.set({ fen: fenRef.current });
+            }
+          },
+        },
+      });
+
+      cgRef.current = cg;
+    } catch (err) {
+      console.error('Chessground init failed:', err);
+    }
 
     return () => {
       if (containerRef.current) containerRef.current.innerHTML = '';

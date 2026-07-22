@@ -51,6 +51,12 @@ Replace the single-file architecture with Vite + Preact + chessground.
       class component). Fallback: "Something went wrong. Reload the page."
 
 ### Cleanup
+- [x] **Fix initial board not rendering.** Changed initial FEN from `'start'`
+      to the full 6-field FEN string in `app.jsx`. Chessground v9.2.1 requires
+      a full FEN (piece placement + side + castling + en passant + halfmove +
+      fullmove); the shorthand `'start'` triggers an invalid-FEN error. Also
+      added a try/catch around Chessground init in `Board.jsx` for visibility.
+      (Fixed 2026-07-22)
 - [ ] **Fix `applySideOverride` FEN padding** (prototype/REVIEW §3.1) — rewrite
       to construct the padded FEN explicitly field-by-field.
 - [ ] Delete old `index.html`, `app.js` once the Vite version is confirmed working.

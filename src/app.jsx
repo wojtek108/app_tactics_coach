@@ -6,7 +6,7 @@ import { TrainPanel } from './TrainPanel.jsx';
 const TABS = ['Train', 'Motifs', 'Library'];
 
 export function App() {
-  const [fen, setFen] = useState('start');
+  const [fen, setFen] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
   const [orientation, setOrientation] = useState('white');
   const [lastMove, setLastMove] = useState(null);
   const [activeTab, setActiveTab] = useState('Train');
