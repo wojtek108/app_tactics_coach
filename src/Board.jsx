@@ -8,24 +8,16 @@ import 'chessground/assets/chessground.cburnett.css';
 /**
  * Thin Preact wrapper around chessground.
  *
- * chessground is imperative — you call Chessground(el, config) and then
- * call .set(config) to update it. This component manages that lifecycle
- * so the rest of the app sees declarative props.
- *
- * Moves are validated against chess.js: when the user drops a piece,
- * we try the move on a scratch game. Legal moves become lastMove[]
- * so the board gets a highlight; illegal pieces snap back.
+ * Modes:
+ *   view      — no moves (Stage 0 journaling, post-solve, loading)
+ *   enumerate — Stage 1: any legal move is tried then snapped back;
+ *               parent decides if it counts as a CCT find
+ *   try       — Stage 2: any legal move is reported (candidate trial);
+ *               parent may update FEN after engine reply
+ *   commit    — Stage 3: only targetMove is accepted
  *
  * Promotion: chessground has no built-in picker. When a pawn reaches the
- * last rank we intercept, show a Q/R/B/N overlay, and only then commit
- * the move (including the promotion piece in the UCI string for training).
- */
-/**
- * targetMove  — UCI string (e.g. "e2e4" or "e7e8q"). When set, only this
- *               exact move is accepted; all other legal moves snap back
- *               and call onWrongMove.
- * onWrongMove — called with (from, to) when the user makes a legal-but-wrong move
- * onCorrectMove — called with (from, to) when the user finds the target move
+ * last rank we intercept, show a Q/R/B/N overlay, then commit/probe.
  */
 
 const PROMO_CHOICES = [
@@ -43,37 +35,56 @@ function isPromotionMove(fen, orig, dest) {
   return (piece.color === 'w' && rank === '8') || (piece.color === 'b' && rank === '1');
 }
 
-/** True if the user's move matches the engine target (incl. underpromotion). */
 function matchesTarget(orig, dest, promo, targetUci) {
   if (!targetUci) return true;
   if (orig + dest !== targetUci.slice(0, 4)) return false;
-  // Target specifies a promotion piece — must match exactly.
   if (targetUci.length >= 5) {
     return (promo || 'q') === targetUci[4];
   }
   return true;
 }
 
-export function Board({ fen, orientation, lastMove, onMove, targetMove, onWrongMove, onCorrectMove }) {
+function toUci(orig, dest, promo) {
+  return orig + dest + (promo || '');
+}
+
+/**
+ * @param {object} props
+ * @param {'view'|'enumerate'|'try'|'commit'} [props.mode]
+ */
+export function Board({
+  fen,
+  orientation,
+  lastMove,
+  onMove,
+  mode = 'view',
+  targetMove,
+  onWrongMove,
+  onCorrectMove,
+  onProbeMove,
+}) {
   const containerRef = useRef(null);
   const cgRef = useRef(null);
   const fenRef = useRef(fen);
+  const modeRef = useRef(mode);
   const onMoveRef = useRef(onMove);
   const targetMoveRef = useRef(targetMove);
   const onWrongMoveRef = useRef(onWrongMove);
   const onCorrectMoveRef = useRef(onCorrectMove);
+  const onProbeMoveRef = useRef(onProbeMove);
 
-  // Pending promotion: { orig, dest, color: 'w'|'b' }
   const [pendingPromo, setPendingPromo] = useState(null);
 
   fenRef.current = fen;
+  modeRef.current = mode;
   onMoveRef.current = onMove;
   targetMoveRef.current = targetMove;
   onWrongMoveRef.current = onWrongMove;
   onCorrectMoveRef.current = onCorrectMove;
+  onProbeMoveRef.current = onProbeMove;
 
-  // Compute legal move destinations for the selected piece
   function computeDests() {
+    if (modeRef.current === 'view') return new Map();
     const game = new Chess(fenRef.current);
     const dests = new Map();
     for (const move of game.moves({ verbose: true })) {
@@ -84,23 +95,81 @@ export function Board({ fen, orientation, lastMove, onMove, targetMove, onWrongM
     return dests;
   }
 
-  /** Commit a validated move (promo is 'q'|'r'|'n'|'b' or null). */
+  function movableColor() {
+    if (modeRef.current === 'view') return undefined;
+    return orientation === 'white' ? 'white' : 'black';
+  }
+
+  function snapBack(cg) {
+    if (cg) {
+      cg.set({
+        fen: fenRef.current,
+        lastMove: undefined,
+        movable: {
+          color: movableColor(),
+          dests: computeDests(),
+          free: false,
+        },
+      });
+    }
+  }
+
+  /** Probe modes: validate, report UCI, snap board back (parent owns FEN). */
+  const probeMove = useCallback((orig, dest, promo) => {
+    const cg = cgRef.current;
+    const game = new Chess(fenRef.current);
+    const moveOpts = { from: orig, to: dest };
+    if (promo) moveOpts.promotion = promo;
+
+    let move;
+    try {
+      move = game.move(moveOpts);
+    } catch {
+      snapBack(cg);
+      return;
+    }
+    if (!move) {
+      snapBack(cg);
+      return;
+    }
+
+    const uci = toUci(orig, dest, promo || move.promotion || null);
+    snapBack(cg);
+    if (onProbeMoveRef.current) {
+      onProbeMoveRef.current({
+        uci,
+        san: move.san,
+        from: orig,
+        to: dest,
+        promo: promo || move.promotion || null,
+        isCheck: game.inCheck(),
+        isCapture: !!move.captured,
+      });
+    }
+  }, []);
+
+  /** Commit mode: enforce targetMove, update board on success. */
   const commitMove = useCallback((orig, dest, promo) => {
     const cg = cgRef.current;
     const game = new Chess(fenRef.current);
     const moveOpts = { from: orig, to: dest };
     if (promo) moveOpts.promotion = promo;
 
-    const move = game.move(moveOpts);
+    let move;
+    try {
+      move = game.move(moveOpts);
+    } catch {
+      snapBack(cg);
+      return;
+    }
     if (!move) {
-      if (cg) cg.set({ fen: fenRef.current });
+      snapBack(cg);
       return;
     }
 
-    // Training mode: check against engine target (full UCI for promos)
     if (targetMoveRef.current) {
       if (!matchesTarget(orig, dest, promo, targetMoveRef.current)) {
-        if (cg) cg.set({ fen: fenRef.current, lastMove: undefined });
+        snapBack(cg);
         if (onWrongMoveRef.current) onWrongMoveRef.current(orig, dest);
         return;
       }
@@ -112,16 +181,32 @@ export function Board({ fen, orientation, lastMove, onMove, targetMove, onWrongM
       cg.set({
         fen: game.fen(),
         lastMove: lm,
-        movable: { dests: new Map() }, // freeze after a move until parent reloads
+        movable: { color: undefined, dests: new Map(), free: false },
       });
     }
     if (onMoveRef.current) onMoveRef.current(lm);
   }, []);
 
+  const handleResolvedMove = useCallback(
+    (orig, dest, promo) => {
+      const m = modeRef.current;
+      if (m === 'view') {
+        snapBack(cgRef.current);
+        return;
+      }
+      if (m === 'enumerate' || m === 'try') {
+        probeMove(orig, dest, promo);
+        return;
+      }
+      // commit
+      commitMove(orig, dest, promo);
+    },
+    [probeMove, commitMove],
+  );
+
   const cancelPromo = useCallback(() => {
     setPendingPromo(null);
-    const cg = cgRef.current;
-    if (cg) cg.set({ fen: fenRef.current });
+    snapBack(cgRef.current);
   }, []);
 
   const pickPromo = useCallback(
@@ -129,9 +214,9 @@ export function Board({ fen, orientation, lastMove, onMove, targetMove, onWrongM
       if (!pendingPromo) return;
       const { orig, dest } = pendingPromo;
       setPendingPromo(null);
-      commitMove(orig, dest, letter);
+      handleResolvedMove(orig, dest, letter);
     },
-    [pendingPromo, commitMove],
+    [pendingPromo, handleResolvedMove],
   );
 
   // Init chessground once on mount
@@ -145,7 +230,7 @@ export function Board({ fen, orientation, lastMove, onMove, targetMove, onWrongM
         orientation,
         lastMove: lastMove || undefined,
         movable: {
-          color: orientation === 'white' ? 'white' : 'black',
+          color: movableColor(),
           dests: computeDests(),
           free: false,
         },
@@ -153,8 +238,10 @@ export function Board({ fen, orientation, lastMove, onMove, targetMove, onWrongM
         drawable: { enabled: false },
         events: {
           move: (orig, dest) => {
-            // Promotion: chessground already dragged the pawn visually —
-            // snap back and ask the user which piece they want.
+            if (modeRef.current === 'view') {
+              snapBack(cg);
+              return;
+            }
             if (isPromotionMove(fenRef.current, orig, dest)) {
               cg.set({ fen: fenRef.current });
               const piece = new Chess(fenRef.current).get(orig);
@@ -165,8 +252,7 @@ export function Board({ fen, orientation, lastMove, onMove, targetMove, onWrongM
               });
               return;
             }
-
-            commitMove(orig, dest, null);
+            handleResolvedMove(orig, dest, null);
           },
         },
       });
@@ -179,11 +265,10 @@ export function Board({ fen, orientation, lastMove, onMove, targetMove, onWrongM
     return () => {
       el.innerHTML = '';
     };
-    // Mount-only: fen/orientation/lastMove applied via the update effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update chessground when props change; drop any open promotion dialog.
+  // Sync props → chessground
   useEffect(() => {
     setPendingPromo(null);
     const cg = cgRef.current;
@@ -193,14 +278,13 @@ export function Board({ fen, orientation, lastMove, onMove, targetMove, onWrongM
       orientation,
       lastMove: lastMove || undefined,
       movable: {
-        color: orientation === 'white' ? 'white' : 'black',
+        color: movableColor(),
         dests: computeDests(),
         free: false,
       },
     });
-  }, [fen, orientation, lastMove]);
+  }, [fen, orientation, lastMove, mode, targetMove]);
 
-  // Escape cancels promotion (defaults not applied — user must re-move)
   useEffect(() => {
     if (!pendingPromo) return;
     const onKey = (e) => {
@@ -221,10 +305,7 @@ export function Board({ fen, orientation, lastMove, onMove, targetMove, onWrongM
           aria-label="Choose promotion piece"
           onClick={cancelPromo}
         >
-          <div
-            class="promo-picker"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div class="promo-picker" onClick={(e) => e.stopPropagation()}>
             <div class="promo-label">Promote to</div>
             <div class="promo-choices">
               {PROMO_CHOICES.map(({ letter, role, label }) => (

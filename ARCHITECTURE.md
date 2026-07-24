@@ -1,6 +1,6 @@
 # Architecture Review — Socratic Chess Coach
 
-Date: 2026-07-18
+Date: 2026-07-24 (last updated)
 Author: Claude (design review of the Preact + Vite + chessground migration)
 
 > **Companion files:** `SPEC.md` (what & why), `TODO.md` (milestone task list),
@@ -27,7 +27,7 @@ Preact — no jQuery fights, no CDN `<script>` tags, everything is `import`.
 
 ---
 
-## 1. Centralized state: useReducer + Context
+## 1. Centralized state: useReducer + Context — DONE 2026-07-24
 
 **Decision:** Single `useReducer` at App level, exposed via Preact Context.
 
@@ -36,7 +36,12 @@ shared state — the board FEN, the engine's best move, the current hint stage,
 session progress. Prop-drilling this through Board → TrainPanel → socratic
 stages would create a spiderweb of 15+ prop passthroughs.
 
-**State shape:**
+**Implementation:** `src/context.jsx` exports `AppProvider`, `useAppState`,
+`useAppDispatch`. `app.jsx` wraps the tree in `<AppProvider>` and consumes
+via `useAppState()`/`useAppDispatch()`. `TrainPanel.jsx` reads `feedback`
+from context and dispatches directly.
+
+**State shape (actual):**
 
 ```js
 {
@@ -51,18 +56,21 @@ stages would create a spiderweb of 15+ prop passthroughs.
   session: {
     targetMove: string | null,
     analysis: object | null,
-    hintStage: number,          // 1-4
-    socraticStage: number,       // 0-4
+    hintStage: number,          // 0-4
   } | null,
+  feedback: { text: string, error: boolean } | null,
   ui: {
-    activeTab: 'train' | 'motifs' | 'library',
+    activeTab: 'Train' | 'Motifs' | 'Library',
   },
 }
 ```
 
-**Cost:** ~30 lines of boilerplate (reducer + Context provider + one custom
-hook). **Benefit:** prevents ~200 lines of prop-wiring and state-sync bugs.
-Do in M1 while the component tree is flat.
+**Actions:** `SET_FEN`, `SET_ORIENTATION`, `FLIP_ORIENTATION`,
+`SET_LAST_MOVE`, `ENGINE_STATUS`, `SESSION_START`, `SESSION_HINT`,
+`SESSION_END`, `SET_FEEDBACK`, `CLEAR_FEEDBACK`, `SET_TAB`.
+
+**Cost:** ~105 lines (`context.jsx`) + ~10 lines in `app.jsx` provider
+wrapping. **Benefit:** no prop drilling; components dispatch directly.
 
 ---
 
@@ -270,7 +278,7 @@ unhandled error in any component.
 
 ---
 
-## 8. File layout (current state, updated 2026-07-18)
+## 8. File layout (current state, updated 2026-07-24)
 
 Files marked **(M1)** exist now; files marked **(planned)** don't yet —
 they're the target layout from the milestones below. See `TODO.md` for which
@@ -285,15 +293,18 @@ app_tactics_coach/
   .prettierrc.json        (M1)
   src/
     main.jsx              Preact render entry (M1)
-    app.jsx               top-level component, tabs (M1; Context provider planned)
+    app.jsx               top-level component, tabs, ErrorBoundary, AppProvider (M1)
     app.css               all styles (dark theme, layout, tabs) (M1)
     index.css             reset / base styles (M1)
+    context.jsx           useReducer + Context provider, state shape (M1)
     Board.jsx             chessground wrapper component (M1)
-    TrainPanel.jsx        Train tab: FEN input, side toggle, hint button (M1, partial)
+    TrainPanel.jsx        Train tab: staged Socratic flow, FEN input, hints (M1, M4)
     lib/
+      engine.js           Promise-based Stockfish worker API (M1)
       analyzer.js         tactic detection, ported from v0.1 (M1)
       analyzer.test.js    vitest suite, 15 tests (M1)
-    engine.js             Promise-based Stockfish worker API (planned, M1)
+      cct.js              CCT helper — list checks and captures (M4)
+      cct.test.js         vitest suite, 7 tests (M4)
     socratic.js           Train-mode staged flow, Stages 0–4 (planned, M4)
     motifs.js             motif definitions + example FENs (planned, M3)
     motifs-view.js        Motifs reference tab rendering (planned, M3)

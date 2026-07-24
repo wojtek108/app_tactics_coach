@@ -8,10 +8,10 @@ Status legend: `[ ]` pending · `[~]` in progress · `[x]` done · `[!]` blocked
 
 ---
 
-## M1 — Vite + Preact scaffold  `[~]` priority: high
+## M1 — Vite + Preact scaffold  `[x]` priority: high — DONE 2026-07-24
 
 Replace the single-file architecture with Vite + Preact + chessground.
-**Mostly done** — the app runs and the core training loop works.
+**Complete.**
 
 ### Scaffold & dependencies
 - [x] Scaffold Vite + Preact project in the repo root
@@ -19,52 +19,36 @@ Replace the single-file architecture with Vite + Preact + chessground.
 - [x] Initialize git repo + baseline commit (done 2026-07-18)
 - [x] Add ESLint 9 flat config + Prettier, Preact-compatible (done 2026-07-18)
 
-### Centralized state (do before M4 — cheap now, expensive to retrofit)
-- [ ] Add `useReducer` + Preact Context at App level. Single state shape:
-  ```
-  { board: { fen, orientation, lastMove },
-    engine: { status: 'idle'|'loading'|'ready'|'thinking' },
-    session: { targetMove, analysis, hintStage, stage } | null,
-    ui: { activeTab } }
-  ```
-- [ ] Pass dispatch via Context; components read only the slice they need.
-      No prop drilling through Board → Trainpanel → socratic.js.
+### Centralized state — DONE 2026-07-24
+- [x] `src/context.jsx` — `useReducer` + Preact Context at App level.
+      State shape: `{ board, engine, session, feedback, ui }`.
+- [x] Dispatch via Context; components read only the slice they need.
+      No prop drilling through Board → TrainPanel → socratic.js.
+- [x] `app.jsx` wraps content in `<AppProvider>`, `<AppInner>` consumes context.
+- [x] `TrainPanel.jsx` reads `feedback` from context, dispatches directly.
 
 ### Engine module (Promise-based API) — DONE 2026-07-18
 - [x] `src/lib/engine.js` — clean module: `createEngine({ onStatus }) → { ready(), analyze(fen), destroy() }`
-  - Sends `stop` + `ucinewgame` + `position fen` + `go movetime`
-  - Returns Promise that resolves on `bestmove`, with safety timeout
-  - `onStatus` callback forwards `info depth` lines for live depth display
-  - Worker path: `new Worker('/stockfish.js')` (served from `public/`)
 
 ### Analyzer module (tested before ported) — DONE 2026-07-18
 - [x] Add vitest, port analyzer.js, write 15 tests
 
-### UI components — DONE 2026-07-18 (basic working versions)
+### UI components — DONE 2026-07-18
 - [x] `src/app.css` — dark theme, layout, tabs, sample-select, buttons
 - [x] `src/app.jsx` — top-level component, tab routing, training state coordination
-- [x] `src/Board.jsx` — chessground wrapper with training-mode support (targetMove, onWrongMove, onCorrectMove)
-- [x] `src/TrainPanel.jsx` — FEN input, side toggle, flip, hint ladder, engine integration, sample positions dropdown, post-solve flow
+- [x] `src/Board.jsx` — chessground wrapper with training-mode support
+- [x] `src/TrainPanel.jsx` — FEN input, side toggle, flip, hint ladder, engine integration
 
-### Error boundary
-- [ ] Add `<ErrorBoundary>` at App root using `preact/compat` (or a 15-line
-      class component). Fallback: "Something went wrong. Reload the page."
+### Error boundary — DONE 2026-07-24
+- [x] `<ErrorBoundary>` class component at App root. Fallback: "Something went wrong. Reload the page."
 
 ### Cleanup
-- [x] **Fix initial board not rendering.** Changed initial FEN from `'start'`
-      to the full 6-field FEN string in `app.jsx`. Chessground v9.2.1 requires
-      a full FEN (piece placement + side + castling + en passant + halfmove +
-      fullmove); the shorthand `'start'` triggers an invalid-FEN error. Also
-      added a try/catch around Chessground init in `Board.jsx` for visibility.
-      (Fixed 2026-07-22)
-- [ ] **Fix `applySideOverride` FEN padding** (prototype/REVIEW §3.1) — rewrite
-      to construct the padded FEN explicitly field-by-field.
+- [x] **Fix initial board not rendering.** (Fixed 2026-07-22)
+- [x] **Fix `applySideOverride` FEN padding** — rewritten to construct FEN field-by-field.
 - [ ] Delete old `index.html`, `app.js` once the Vite version is confirmed working.
-- [x] Verify: `npm run dev`, load a FEN, get hints, find the move — every
-      behavior from the original app now works in the Preact version.
+- [x] Verify: `npm run dev`, load a FEN, get hints, find the move.
 
-**Status:** Core M1 done. Centralized state and error boundary are the remaining
-low-effort/high-value items to wrap this milestone.
+**Status: M1 complete.** Centralized state and error boundary landed 2026-07-24.
 
 ---
 
@@ -80,7 +64,7 @@ chessground ships with Cburnett built in — this is now a CSS import.
 
 ---
 
-## M4 — Socratic Train flow  `[~]` priority: high  ← IN PROGRESS
+## M4 — Socratic Train flow  `[x]` priority: high — DONE 2026-07-24
 
 The training loop *is* the product.
 
@@ -97,16 +81,15 @@ The training loop *is* the product.
 - [x] Sample positions dropdown (7 curated tactical FENs)
 - [x] FEN input validation (invalid FENs caught, game-over positions rejected)
 
-### Remaining (staged flow from SPEC F1)
-- [ ] **Stage 0 — Board vision (ungraded).** Free-text input: *"What stands
+### Remaining (staged flow from SPEC F1) — DONE 2026-07-24
+- [x] **Stage 0 — Board vision (ungraded).** Free-text input: *"What stands
       out? Name two or three things."*
-- [ ] **Stage 1 — CCT enumeration.** *"List every check and every capture."*
-      Click-from/click-to on board.
-- [ ] **Stage 2 — Candidate evaluation.** *"Which creates the strongest
+- [x] **Stage 1 — CCT enumeration.** *"List every check and every capture."*
+      Click-from/click-to on board. Uses `lib/cct.js` (7 tests).
+- [x] **Stage 2 — Candidate evaluation.** *"Which creates the strongest
       threat? What does the opponent do after?"* Engine replies to candidate moves.
-- [ ] **Stage 3 — Commit.** *"Play the move you think is strongest."*
-      Currently: simplified single-pass (correct = celebrate, wrong = snap back).
-      Aspirational: wrong-move coaching — show opponent's punishing reply.
+- [x] **Stage 3 — Commit.** *"Play the move you think is strongest."*
+      Board in commit mode — correct = celebrate, wrong = snap back.
 - [x] **Stage 4 — Earned reveal** — DONE (hint ladder)
 - [x] **Promotion picker:** Q/R/B/N overlay when a pawn reaches the last rank.
       chessground has no built-in promotion event (ARCHITECTURE was wrong on

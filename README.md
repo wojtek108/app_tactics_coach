@@ -66,15 +66,19 @@ touching anything chess-logic-related.
 
 ## Current status
 
-The app is mid-migration from the `prototype/` (working v0.1, jQuery +
-chessboard.js) to a Preact + Vite + chessground rewrite in `src/`. The
-rewrite is at **milestone M2/M3**: the board renders, FEN input works, the
-tactic analyzer is ported and tested, Stockfish is wired up, and the
-4-stage Socratic hint ladder is functional. A dropdown of sample tactical
-positions lets you start training immediately without pasting FENs.
+M1 (Vite + Preact scaffold) is **complete**. M2 (Cburnett piece theme) is
+**complete**. M4 (Socratic Train flow) is **complete** — the full staged
+flow works: board vision journaling (Stage 0), CCT enumeration via
+click-to-move (Stage 1), candidate evaluation with engine replies
+(Stage 2), commit to the best move (Stage 3), and the 4-stage hint
+ladder as earned reveal (Stage 4). The rewrite has centralized state
+(`context.jsx`), an error boundary, a Promise-based engine module, a
+tested tactic analyzer (15 tests), a CCT helper (7 tests), and a
+promotion picker for underpromotion puzzles.
 
-Still to do: the Motifs tab (tactical pattern reference), the Library tab
-(saved positions), and mobile-responsive layout.
+Still to do: the Motifs tab
+(tactical pattern reference), the Library tab (saved positions), and
+mobile-responsive layout.
 
 The **"Using it"** flow below describes the current UX. The `prototype/`
 has the full jQuery-based v0.1 for reference.

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import { Chess } from 'chess.js';
 import { createEngine } from './lib/engine.js';
 import { analyzeMove } from './lib/analyzer.js';
+import { listChecksAndCaptures, findForcingMatch } from './lib/cct.js';
+import { useAppState, useAppDispatch } from './context.jsx';
 
 const SIDES = [
   { value: 'fen', label: 'From FEN' },
@@ -87,22 +89,23 @@ function explainMove(a) {
 function applySideOverride(fen, side) {
   if (side === 'fen') return fen;
   const fields = fen.split(/\s+/);
-  while (fields.length < 6)
-    fields.push(
-      fields.length === 3 ? '-' : fields.length === 2 ? '-' : fields.length === 4 ? '0' : '1',
-    );
-  fields[1] = side; // active color
-  fields[3] = '-'; // en passant no longer valid
-  return fields.join(' ');
+  const placement = fields[0] || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
+  const castling = fields[2] || '-';
+  const halfmove = fields[4] || '0';
+  const fullmove = fields[5] || '1';
+  return `${placement} ${side} ${castling} - ${halfmove} ${fullmove}`;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function TrainPanel({ onLoad, onFlip, feedback, puzzleSolved, onAnalysisReady }) {
+export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHandlerRef }) {
+  const { feedback } = useAppState();
+  const dispatch = useAppDispatch();
   const engineRef = useRef(null);
 
+  // UI state
   const [fenInput, setFenInput] = useState('');
   const [side, setSide] = useState('fen');
   const [status, setStatus] = useState('Starting engine…');
@@ -115,143 +118,243 @@ export function TrainPanel({ onLoad, onFlip, feedback, puzzleSolved, onAnalysisR
   const [analysis, setAnalysis] = useState(null);
   const [hintStage, setHintStage] = useState(0);
 
+  // Socratic staged flow state
+  const [socraticStage, setSocraticStage] = useState(null); // null = not started, 0-3
+  const [visionNote, setVisionNote] = useState('');
+  const [cctFound, setCctFound] = useState([]);
+  const [cctTarget, setCctTarget] = useState(null);
+  const [candidateUci, setCandidateUci] = useState(null);
+  const [candidateInfo, setCandidateInfo] = useState(null);
+  const [engineReply, setEngineReply] = useState(null);
+  const [engineReplyAnalysis, setEngineReplyAnalysis] = useState(null);
+  const currentFenRef = useRef(null);
+
   // Init engine on mount, destroy on unmount
   useEffect(() => {
-    const engine = createEngine({
+    const eng = createEngine({
       onStatus: (s) => setStatus(s),
     });
-    engineRef.current = engine;
+    engineRef.current = eng;
 
-    engine.ready().then(() => {
+    eng.ready().then(() => {
       setStatus('Engine ready');
       setMessage('Paste a position or pick a sample puzzle below.');
     });
 
-    return () => engine.destroy();
+    return () => eng.destroy();
   }, []);
 
-  // Celebration is now handled by App via the feedback prop, which
-  // uses onAnalysisReady to get the analysis data directly.
+  // ---- Board mode management ----
+  // Derived from socraticStage: view | enumerate | try | commit
+  const getBoardMode = useCallback(() => {
+    if (socraticStage === 0) return 'view';
+    if (socraticStage === 1) return 'enumerate';
+    if (socraticStage === 2) return 'try';
+    if (socraticStage === 3) return 'commit';
+    return 'view';
+  }, [socraticStage]);
 
-  const handleLoad = useCallback(async () => {
+  // Notify parent of board mode changes
+  useEffect(() => {
+    if (onBoardModeChange) onBoardModeChange(getBoardMode());
+  }, [socraticStage, onBoardModeChange, getBoardMode]);
+
+  // Register the probe handler based on current stage
+  useEffect(() => {
+    if (!probeHandlerRef) return;
+    if (socraticStage === 1) {
+      probeHandlerRef.current = handleEnumerateProbe;
+    } else if (socraticStage === 2) {
+      probeHandlerRef.current = handleCandidateProbe;
+    } else {
+      probeHandlerRef.current = null;
+    }
+    return () => { probeHandlerRef.current = null; };
+  }, [socraticStage, probeHandlerRef, handleEnumerateProbe, handleCandidateProbe]);
+
+  // ---- Stage transitions ----
+
+  const enterStage = useCallback(
+    (next) => {
+      setSocraticStage(next);
+      setMessageError(false);
+
+      if (next === 0) {
+        setMessage('');
+      } else if (next === 1) {
+        // Compute CCTs for this position
+        const ccts = listChecksAndCaptures(currentFenRef.current);
+        setCctTarget(ccts);
+        setCctFound([]);
+        setMessage(
+          'List every check and every capture available to your side. Click moves on the board — they snap back after you try them.',
+        );
+      } else if (next === 2) {
+        setCandidateUci(null);
+        setCandidateInfo(null);
+        setEngineReply(null);
+        setEngineReplyAnalysis(null);
+        setMessage(
+          'Of those, which creates the strongest threat? Play a candidate — the engine will show the opponent\'s reply.',
+        );
+      } else if (next === 3) {
+        setMessage('Play the move you think is strongest.');
+      }
+    },
+    [],
+  );
+
+  // ---- Position loading ----
+
+  const loadPosition = useCallback(
+    async (fen) => {
+      let game;
+      try {
+        game = new Chess(fen);
+      } catch {
+        setMessage("That doesn't look like a valid FEN.", true);
+        return;
+      }
+      if (game.isGameOver()) {
+        setMessage('This position is already over (checkmate/stalemate) — try another one.', true);
+        return;
+      }
+
+      currentFenRef.current = fen;
+      setTargetMove(null);
+      setAnalysis(null);
+      setHintStage(0);
+      setSocraticStage(null);
+      setVisionNote('');
+      setCctFound([]);
+      setCctTarget(null);
+      setCandidateUci(null);
+      setCandidateInfo(null);
+      setEngineReply(null);
+      setEngineReplyAnalysis(null);
+      setMessageError(false);
+      setLoading(true);
+      setStatus('Engine thinking…');
+      setMessage('Analyzing…');
+
+      dispatch({ type: 'SET_FEN', fen });
+      dispatch({ type: 'SET_ORIENTATION', orientation: game.turn() === 'b' ? 'black' : 'white' });
+      dispatch({ type: 'SET_LAST_MOVE', lastMove: null });
+      dispatch({ type: 'SESSION_END' });
+
+      const eng = engineRef.current;
+      if (!eng) return;
+
+      try {
+        const bestMove = await eng.analyze(fen);
+        if (!bestMove) {
+          setStatus('Engine timed out');
+          setMessage(
+            "The engine didn't return a move in time. Try a different position or reload.",
+            true,
+          );
+          setLoading(false);
+          return;
+        }
+
+        const result = analyzeMove(fen, bestMove);
+        setTargetMove(bestMove);
+        setAnalysis(result);
+        onAnalysisReady(result);
+        setHintStage(0);
+        setStatus('Ready for training!');
+        setLoading(false);
+
+        dispatch({ type: 'SESSION_START', targetMove: bestMove, analysis: result });
+
+        // Start the Socratic flow at Stage 0
+        enterStage(0);
+      } catch {
+        setStatus('Engine error');
+        setMessage('Something went wrong with the engine. Try reloading.', true);
+        setLoading(false);
+      }
+    },
+    [dispatch, onAnalysisReady, enterStage],
+  );
+
+  const handleLoad = useCallback(() => {
     if (!fenInput.trim()) {
       setMessage('Paste a FEN first.');
       setMessageError(true);
       return;
     }
+    const fen = applySideOverride(fenInput.trim(), side);
+    loadPosition(fen);
+  }, [fenInput, side, loadPosition]);
 
-    // Validate FEN
-    let fen;
-    try {
-      fen = applySideOverride(fenInput.trim(), side);
-      new Chess(fen); // chess.js 1.x throws on invalid FEN
-    } catch {
-      setMessage("That doesn't look like a valid FEN.", true);
-      return;
-    }
-
-    const game = new Chess(fen);
-    if (game.isGameOver()) {
-      setMessage('This position is already over (checkmate/stalemate) — try another one.', true);
-      return;
-    }
-
-    // Clear any previous training state
-    setTargetMove(null);
-    setAnalysis(null);
-    setHintStage(0);
-    setMessageError(false);
-    setLoading(true);
-    setStatus('Engine thinking…');
-    setMessage('Analyzing…');
-
-    // Load board position immediately
-    onLoad(fen, game.turn());
-
-    // Get engine's best move
-    const engine = engineRef.current;
-    if (!engine) return;
-
-    try {
-      const bestMove = await engine.analyze(fen);
-      if (!bestMove) {
-        setStatus('Engine timed out');
-        setMessage('The engine didn\'t return a move in time. Try a different position or reload.', true);
-        setLoading(false);
-        return;
-      }
-
-      const result = analyzeMove(fen, bestMove);
-      setTargetMove(bestMove);
-      setAnalysis(result);
-      onAnalysisReady(result);
-      setHintStage(0);
-      setStatus('Ready for training!');
-      setMessage('Find the best move on the board.');
-      setLoading(false);
-
-      // Pass target move up so Board can enforce it
-      onLoad(fen, game.turn(), bestMove);
-    } catch {
-      setStatus('Engine error');
-      setMessage('Something went wrong with the engine. Try reloading.', true);
-      setLoading(false);
-    }
-  }, [fenInput, side, onLoad, onAnalysisReady]);
-
-  // Auto-load a sample position when selected
   const handleSampleChange = useCallback(
     (e) => {
       const fen = e.target.value;
       if (!fen) return;
       setFenInput(fen);
       setSide('fen');
-      // Trigger load on next tick so state settles first
-      setTimeout(() => {
-        const game = new Chess(fen);
-        if (game.isGameOver()) return;
-
-        setTargetMove(null);
-        setAnalysis(null);
-        setHintStage(0);
-        setMessageError(false);
-        setLoading(true);
-        setStatus('Engine thinking…');
-        setMessage('Analyzing…');
-
-        onLoad(fen, game.turn());
-
-        const engine = engineRef.current;
-        if (!engine) return;
-
-        engine.analyze(fen).then((bestMove) => {
-          if (!bestMove) {
-            setStatus('Engine timed out');
-            setMessage(
-              "The engine didn't return a move in time. Try a different position or reload.",
-              true,
-            );
-            setLoading(false);
-            return;
-          }
-          const result = analyzeMove(fen, bestMove);
-          setTargetMove(bestMove);
-          setAnalysis(result);
-          onAnalysisReady(result);
-          setHintStage(0);
-          setStatus('Ready for training!');
-          setMessage('Find the best move on the board.');
-          setLoading(false);
-          onLoad(fen, game.turn(), bestMove);
-        }).catch(() => {
-          setStatus('Engine error');
-          setMessage('Something went wrong with the engine. Try reloading.', true);
-          setLoading(false);
-        });
-      }, 0);
+      setTimeout(() => loadPosition(fen), 0);
     },
-    [onLoad, onAnalysisReady],
+    [loadPosition],
   );
+
+  // ---- Stage 1: CCT enumeration probe ----
+
+  const handleEnumerateProbe = useCallback(
+    (moveInfo) => {
+      if (!cctTarget) return;
+      const match = findForcingMatch(cctTarget.all, moveInfo.uci);
+      if (match && !cctFound.find((m) => m.uci === match.uci)) {
+        setCctFound((prev) => [...prev, match]);
+      }
+    },
+    [cctTarget, cctFound],
+  );
+
+  // ---- Stage 2: Candidate evaluation probe ----
+
+  const handleCandidateProbe = useCallback(
+    async (moveInfo) => {
+      setCandidateUci(moveInfo.uci);
+      setCandidateInfo(moveInfo);
+
+      // Make the candidate move on a scratch board, then engine-analyze the reply
+      const eng = engineRef.current;
+      if (!eng) return;
+
+      const game = new Chess(currentFenRef.current);
+      try {
+        const moveResult = game.move({
+          from: moveInfo.from,
+          to: moveInfo.to,
+          promotion: moveInfo.promo || undefined,
+        });
+        if (!moveResult) return;
+
+        const replyFen = game.fen();
+        setStatus('Engine thinking…');
+        const replyUci = await eng.analyze(replyFen);
+        if (replyUci) {
+          const replyResult = analyzeMove(replyFen, replyUci);
+          setEngineReply(replyUci);
+          setEngineReplyAnalysis(replyResult);
+          setStatus('Ready for training!');
+        }
+      } catch {
+        setStatus('Ready for training!');
+      }
+    },
+    [],
+  );
+
+  // ---- Stage 2 → 3 transition ----
+
+  const handleEvalDone = useCallback(() => {
+    enterStage(3);
+  }, [enterStage]);
+
+  // ---- Hint ladder (Stage 4, same as before) ----
 
   const handleHint = useCallback(() => {
     if (!targetMove || !analysis) return;
@@ -271,72 +374,166 @@ export function TrainPanel({ onLoad, onFlip, feedback, puzzleSolved, onAnalysisR
         `Your ${pieceName} on ${analysis.from} is the key piece — look at everything it can reach from there.`,
       );
     } else {
-      // Final stage: full reveal
       const promoTxt = analysis.promo ? '=' + analysis.promo.toUpperCase() : '';
       setMessage(`The best move is ${analysis.from}–${analysis.to}${promoTxt}. ${explainMove(analysis)}`);
     }
   }, [targetMove, analysis, hintStage]);
 
+  // ---- Render ----
+
+  const isActive = socraticStage !== null && !feedback;
+
   return (
     <>
       <div id="status">Status: {status}</div>
 
-      <select
-        class="sample-select"
-        onChange={handleSampleChange}
-        disabled={loading}
-        value=""
-      >
-        {SAMPLE_POSITIONS.map(({ label, fen }) => (
-          <option key={label} value={fen}>
-            {label}
-          </option>
-        ))}
-      </select>
+      {!isActive && (
+        <>
+          <select
+            class="sample-select"
+            onChange={handleSampleChange}
+            disabled={loading}
+            value=""
+          >
+            {SAMPLE_POSITIONS.map(({ label, fen }) => (
+              <option key={label} value={fen}>
+                {label}
+              </option>
+            ))}
+          </select>
 
-      <input
-        type="text"
-        id="fenInput"
-        placeholder="Paste FEN here (from Lichess/Chess.com)"
-        value={fenInput}
-        onInput={(e) => setFenInput(e.target.value)}
-        disabled={loading}
-      />
+          <input
+            type="text"
+            id="fenInput"
+            placeholder="Paste FEN here (from Lichess/Chess.com)"
+            value={fenInput}
+            onInput={(e) => setFenInput(e.target.value)}
+            disabled={loading}
+          />
 
-      <div class="side-toggle">
-        {SIDES.map(({ value, label }) => (
-          <label key={value}>
-            <input
-              type="radio"
-              name="side"
-              value={value}
-              checked={side === value}
-              onChange={(e) => setSide(e.target.value)}
-              disabled={loading}
-            />
-            {label}
-          </label>
-        ))}
-      </div>
+          <div class="side-toggle">
+            {SIDES.map(({ value, label }) => (
+              <label key={value}>
+                <input
+                  type="radio"
+                  name="side"
+                  value={value}
+                  checked={side === value}
+                  onChange={(e) => setSide(e.target.value)}
+                  disabled={loading}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
 
-      <div class="btn-row">
-        <button class="btn-main" onClick={handleLoad} disabled={loading}>
-          Load Position
-        </button>
-        <button class="btn-flip" onClick={onFlip}>
-          ⇅ Flip
-        </button>
-      </div>
+          <div class="btn-row">
+            <button class="btn-main" onClick={handleLoad} disabled={loading}>
+              Load Position
+            </button>
+            <button class="btn-flip" onClick={onFlip}>
+              ⇅ Flip
+            </button>
+          </div>
+        </>
+      )}
 
-      {targetMove && !puzzleSolved && (
+      {/* ---- Stage 0: Board vision ---- */}
+      {socraticStage === 0 && !feedback && (
+        <div class="socratic-stage">
+          <div class="stage-prompt">
+            Before looking for a move — what stands out? Name two or three
+            things about this position.
+          </div>
+          <textarea
+            class="vision-input"
+            placeholder="e.g. The black king is exposed, the rook on d6 is undefended…"
+            value={visionNote}
+            onInput={(e) => setVisionNote(e.target.value)}
+            rows={3}
+          />
+          <button class="btn-main" onClick={() => enterStage(1)}>
+            Continue to forcing moves →
+          </button>
+        </div>
+      )}
+
+      {/* ---- Stage 1: CCT enumeration ---- */}
+      {socraticStage === 1 && !feedback && (
+        <div class="socratic-stage">
+          <div class="cct-progress">
+            Found {cctFound.length} of {cctTarget ? cctTarget.all.length : 0} forcing moves
+          </div>
+
+          {cctFound.length > 0 && (
+            <div class="cct-found">
+              <div class="cct-label">You found:</div>
+              <div class="cct-chips">
+                {cctFound.map((m) => (
+                  <span key={m.uci} class={`cct-chip cct-${m.kind}`}>
+                    {m.san}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {cctTarget && cctFound.length === cctTarget.all.length && cctTarget.all.length > 0 && (
+            <div class="cct-complete">You found them all!</div>
+          )}
+
+          <button class="btn-main" onClick={() => enterStage(2)}>
+            {cctFound.length > 0 ? 'Done — evaluate candidates →' : 'Skip — evaluate candidates →'}
+          </button>
+
+          {cctFound.length === 0 && (
+            <button class="btn-hint" onClick={() => enterStage(2)} style="margin-top: 4px;">
+              {"I didn't find any — continue anyway"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ---- Stage 2: Candidate evaluation ---- */}
+      {socraticStage === 2 && !feedback && (
+        <div class="socratic-stage">
+          {candidateUci && (
+            <div class="candidate-info">
+              <span class="candidate-label">Your candidate:</span>{' '}
+              <strong>{candidateInfo?.san || candidateUci}</strong>
+            </div>
+          )}
+
+          {engineReply && (
+            <div class="engine-reply">
+              <span class="reply-label">Opponent replies:</span>{' '}
+              <strong>{engineReplyAnalysis?.san || engineReply}</strong>
+              {engineReplyAnalysis && (
+                <span class="reply-detail">
+                  {engineReplyAnalysis.isCheck && ' (check)'}
+                  {engineReplyAnalysis.isCapture && ' (captures)'}
+                </span>
+              )}
+            </div>
+          )}
+
+          <button class="btn-main" onClick={handleEvalDone}>
+            Commit to a move →
+          </button>
+        </div>
+      )}
+
+      {/* ---- Stage 3: Commit — hint + give-up ---- */}
+      {socraticStage === 3 && targetMove && !feedback && (
         <button class="btn-hint" onClick={handleHint}>
           I need a hint
         </button>
       )}
 
-      {puzzleSolved && (
+      {/* ---- Post-solve / feedback ---- */}
+      {feedback && (
         <button class="btn-next" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          🎉 Solved! Pick another sample puzzle above or paste a new FEN.
+          Pick another sample puzzle above or paste a new FEN.
         </button>
       )}
 

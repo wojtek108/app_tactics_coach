@@ -1,55 +1,64 @@
-import { useState, useCallback, useRef } from 'preact/hooks';
+import { Component } from 'preact';
+import { useCallback, useRef, useState } from 'preact/hooks';
 import './app.css';
+import { AppProvider, useAppState, useAppDispatch } from './context.jsx';
 import { Board } from './Board.jsx';
 import { TrainPanel } from './TrainPanel.jsx';
 
 const TABS = ['Train', 'Motifs', 'Library'];
 
-export function App() {
-  const [fen, setFen] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
-  const [orientation, setOrientation] = useState('white');
-  const [lastMove, setLastMove] = useState(null);
-  const [activeTab, setActiveTab] = useState('Train');
+class ErrorBoundary extends Component {
+  state = { error: null };
+  componentDidCatch(error) {
+    this.setState({ error });
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div class="panel" style="text-align:center; padding:40px;">
+          <p style="color:#ef5350; margin-bottom:12px;">Something went wrong.</p>
+          <button class="btn-main" onClick={() => location.reload()}>Reload the page</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
-  // Training mode state
-  const [targetMove, setTargetMove] = useState(null);
-  const [feedback, setFeedback] = useState(null);
-  const [puzzleSolved, setPuzzleSolved] = useState(false);
+function AppInner() {
+  const { board, session, ui } = useAppState();
+  const dispatch = useAppDispatch();
 
   // Latest analysis from the engine, stored in a ref so the Board's
-  // onCorrectMove handler (which has a stale closure over trainPanel state)
-  // can still produce a celebration message.
+  // onCorrectMove handler (which has a stale closure) can still produce
+  // a celebration message.
   const analysisRef = useRef(null);
 
+  // Board mode controlled by TrainPanel's staged flow
+  const [boardMode, setBoardMode] = useState('view');
+
+  // Ref to TrainPanel's probe handler — set by TrainPanel on mount
+  const probeHandlerRef = useRef(null);
+
   const handleFlip = useCallback(() => {
-    setOrientation((o) => (o === 'white' ? 'black' : 'white'));
-  }, []);
+    dispatch({ type: 'FLIP_ORIENTATION' });
+  }, [dispatch]);
 
-  const handlePositionLoad = useCallback((newFen, side, engineMove) => {
-    setFen(newFen);
-    setOrientation(side === 'b' ? 'black' : 'white');
-    setLastMove(null);
-    setTargetMove(engineMove || null);
-    setFeedback(null);
-    setPuzzleSolved(false);
-  }, []);
-
-  // TrainPanel calls this when the engine finishes analyzing, so App
-  // can produce a celebration message when the user finds the move.
   const handleAnalysisReady = useCallback((analysis) => {
     analysisRef.current = analysis;
   }, []);
 
   const handleWrongMove = useCallback(() => {
-    setFeedback({ text: "That's legal, but there's a much better way. Try again!", error: false });
-  }, []);
+    dispatch({
+      type: 'SET_FEEDBACK',
+      feedback: { text: "That's legal, but there's a much better way. Try again!", error: false },
+    });
+  }, [dispatch]);
 
   const handleCorrectMove = useCallback(() => {
-    setPuzzleSolved(true);
-    setTargetMove(null);
+    dispatch({ type: 'SESSION_END' });
+    dispatch({ type: 'SET_LAST_MOVE', lastMove: null });
 
-    // Build celebration from the analysis ref — avoids dependency on
-    // TrainPanel's useEffect which can fail if analysis state is stale.
     const a = analysisRef.current;
     if (a) {
       const piece = { p: 'Pawn', n: 'Knight', b: 'Bishop', r: 'Rook', q: 'Queen', k: 'King' }[a.movingType];
@@ -61,64 +70,83 @@ export function App() {
       else if (a.isDiscoveredCheck) why = ' — a discovered check';
       else if (a.isDirectCheck) why = ' — a direct check';
 
-      setFeedback({
-        text: `🎉 Correct! ${piece} to ${to} is the best move.${why}`,
-        error: false,
+      dispatch({
+        type: 'SET_FEEDBACK',
+        feedback: { text: `🎉 Correct! ${piece} to ${to} is the best move.${why}`, error: false },
       });
     } else {
-      setFeedback({ text: '🎉 Correct! That is the best move.', error: false });
+      dispatch({
+        type: 'SET_FEEDBACK',
+        feedback: { text: '🎉 Correct! That is the best move.', error: false },
+      });
     }
+  }, [dispatch]);
+
+  // Board probe handler — delegates to TrainPanel's current stage handler
+  const handleBoardProbe = useCallback((moveInfo) => {
+    if (probeHandlerRef.current) probeHandlerRef.current(moveInfo);
   }, []);
 
   return (
-    <div class="app">
-      <h1>♟ Socratic Chess Coach</h1>
+    <ErrorBoundary>
+      <div class="app">
+        <h1>♟ Socratic Chess Coach</h1>
 
-      <Board
-        fen={fen}
-        orientation={orientation}
-        lastMove={lastMove}
-        onMove={setLastMove}
-        targetMove={targetMove}
-        onWrongMove={handleWrongMove}
-        onCorrectMove={handleCorrectMove}
-      />
+        <Board
+          fen={board.fen}
+          orientation={board.orientation}
+          lastMove={board.lastMove}
+          onMove={(lm) => dispatch({ type: 'SET_LAST_MOVE', lastMove: lm })}
+          mode={boardMode}
+          targetMove={session ? session.targetMove : null}
+          onWrongMove={handleWrongMove}
+          onCorrectMove={handleCorrectMove}
+          onProbeMove={boardMode === 'enumerate' || boardMode === 'try' ? handleBoardProbe : undefined}
+        />
 
-      <div class="panel">
-        <div class="tabs">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              class={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
+        <div class="panel">
+          <div class="tabs">
+            {TABS.map((tab) => (
+              <button
+                key={tab}
+                class={`tab-btn ${ui.activeTab === tab ? 'active' : ''}`}
+                onClick={() => dispatch({ type: 'SET_TAB', tab })}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {ui.activeTab === 'Train' && (
+            <TrainPanel
+              onFlip={handleFlip}
+              onAnalysisReady={handleAnalysisReady}
+              onBoardModeChange={setBoardMode}
+              probeHandlerRef={probeHandlerRef}
+            />
+          )}
+
+          {ui.activeTab === 'Motifs' && (
+            <div style="text-align:center; padding:40px; color:#666;">
+              Tactics reference — coming soon
+            </div>
+          )}
+
+          {ui.activeTab === 'Library' && (
+            <div style="text-align:center; padding:40px; color:#666;">
+              Position library — coming soon
+            </div>
+          )}
         </div>
-
-        {activeTab === 'Train' && (
-          <TrainPanel
-            onLoad={handlePositionLoad}
-            onFlip={handleFlip}
-            feedback={feedback}
-            puzzleSolved={puzzleSolved}
-            onAnalysisReady={handleAnalysisReady}
-          />
-        )}
-
-        {activeTab === 'Motifs' && (
-          <div style="text-align:center; padding:40px; color:#666;">
-            Tactics reference — coming soon
-          </div>
-        )}
-
-        {activeTab === 'Library' && (
-          <div style="text-align:center; padding:40px; color:#666;">
-            Position library — coming soon
-          </div>
-        )}
       </div>
-    </div>
+    </ErrorBoundary>
+  );
+}
+
+export function App() {
+  return (
+    <AppProvider>
+      <AppInner />
+    </AppProvider>
   );
 }
