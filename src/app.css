@@ -356,3 +356,184 @@ button:disabled {
   color: #888;
   font-size: 0.9em;
 }
+
+/* ---- Recognition step (M5) ---- */
+.recognition-step .stage-prompt {
+  margin-bottom: 4px;
+}
+
+.recognition-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recognition-btn {
+  width: 100%;
+  padding: 10px 12px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  border: 1px solid #333;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.recognition-btn:hover {
+  background: #16213e;
+  border-color: #90caf9;
+}
+
+/* ---- Save dialog (M6) ---- */
+.save-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: #111;
+  border-radius: 6px;
+  border: 1px solid #333;
+}
+
+.save-label {
+  font-size: 0.8em;
+  color: #888;
+}
+
+.save-motif-select {
+  width: 100%;
+  padding: 8px;
+  background: #000;
+  color: #90caf9;
+  border: 1px solid #444;
+  border-radius: 4px;
+  font-family: sans-serif;
+  font-size: 0.85em;
+}
+
+.save-motif-select option {
+  background: #1e1e1e;
+  color: #eee;
+}
+
+/* ---- Solved actions (M6) ---- */
+.solved-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.btn-save {
+  width: 100%;
+  background: #1565c0;
+  color: white;
+  font-size: 0.85em;
+}
+
+.save-confirmation {
+  color: #4caf50;
+  font-weight: 600;
+  font-size: 0.85em;
+  text-align: center;
+  padding: 4px;
+}
+
+/* ---- Motifs tab (M3) ---- */
+.motifs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.motif-card {
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.motif-card:hover {
+  border-color: #555;
+}
+
+.motif-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+}
+
+.motif-card-name {
+  font-weight: 700;
+  color: #e0e0e0;
+  font-size: 0.9em;
+}
+
+.motif-card-category {
+  font-size: 0.7em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #1a1a2e;
+  color: #90caf9;
+}
+
+.motif-card-summary {
+  padding: 0 12px 10px;
+  font-size: 0.8em;
+  color: #aaa;
+  line-height: 1.4;
+}
+
+.motif-card.expanded .motif-card-body {
+  padding: 0 12px 12px;
+  border-top: 1px solid #333;
+}
+
+.motif-card-body {
+  display: none;
+}
+
+.motif-card.expanded .motif-card-body {
+  display: block;
+}
+
+.motif-description {
+  font-size: 0.8em;
+  color: #ccc;
+  line-height: 1.5;
+  margin: 8px 0;
+}
+
+.motif-example-btn {
+  width: 100%;
+  padding: 8px;
+  background: #2e7d32;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8em;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.motif-example-btn:hover {
+  background: #388e3c;
+}
+
+.motif-board-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0;
+}
+
+.motif-board {
+  width: 180px;
+  height: 180px;
+  border-radius: 4px;
+  overflow: hidden;
+}

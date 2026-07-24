@@ -4,6 +4,7 @@ import './app.css';
 import { AppProvider, useAppState, useAppDispatch } from './context.jsx';
 import { Board } from './Board.jsx';
 import { TrainPanel } from './TrainPanel.jsx';
+import { MotifsView } from './MotifsView.jsx';
 
 const TABS = ['Train', 'Motifs', 'Library'];
 
@@ -58,28 +59,8 @@ function AppInner() {
   const handleCorrectMove = useCallback(() => {
     dispatch({ type: 'SESSION_END' });
     dispatch({ type: 'SET_LAST_MOVE', lastMove: null });
-
-    const a = analysisRef.current;
-    if (a) {
-      const piece = { p: 'Pawn', n: 'Knight', b: 'Bishop', r: 'Rook', q: 'Queen', k: 'King' }[a.movingType];
-      const to = a.to;
-      let why = '';
-      if (a.isFork) why = ` — it's a fork attacking ${a.forkTargets.length} pieces`;
-      else if (a.pinInfo && a.pinInfo.type === 'pin') why = ` — it pins the enemy ${piece} to the king`;
-      else if (a.pinInfo && a.pinInfo.type === 'skewer') why = ` — it's a skewer`;
-      else if (a.isDiscoveredCheck) why = ' — a discovered check';
-      else if (a.isDirectCheck) why = ' — a direct check';
-
-      dispatch({
-        type: 'SET_FEEDBACK',
-        feedback: { text: `🎉 Correct! ${piece} to ${to} is the best move.${why}`, error: false },
-      });
-    } else {
-      dispatch({
-        type: 'SET_FEEDBACK',
-        feedback: { text: '🎉 Correct! That is the best move.', error: false },
-      });
-    }
+    // Signal TrainPanel to show the recognition step — feedback comes after
+    dispatch({ type: 'SHOW_RECOGNITION' });
   }, [dispatch]);
 
   // Board probe handler — delegates to TrainPanel's current stage handler
@@ -126,15 +107,11 @@ function AppInner() {
             />
           )}
 
-          {ui.activeTab === 'Motifs' && (
-            <div style="text-align:center; padding:40px; color:#666;">
-              Tactics reference — coming soon
-            </div>
-          )}
+          {ui.activeTab === 'Motifs' && <MotifsView />}
 
           {ui.activeTab === 'Library' && (
             <div style="text-align:center; padding:40px; color:#666;">
-              Position library — coming soon
+              Position library — coming soon (M8)
             </div>
           )}
         </div>

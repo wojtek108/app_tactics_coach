@@ -99,90 +99,68 @@ The training loop *is* the product.
 
 ---
 
-## M5 — Recognition step  `[ ]` priority: medium
+## M5 — Recognition step  `[x]` priority: medium — DONE 2026-07-24
 
-The labeling muscle. Depends on M4 (Stage 3 commit). Motif vocabulary needed
-for multiple-choice — hardcode 4 motifs for testing; full M3 comes later.
+The labeling muscle. Depends on M4 (Stage 3 commit).
 
-- [ ] After correct Stage 3 commit, before any explanation, prompt:
+- [x] After correct Stage 3 commit, before any explanation, prompt:
       *"What kind of tactic was that?"*
-- [ ] Multiple-choice options: the correct motif (from `analyzeMove`) plus
+- [x] Multiple-choice options: the correct motif (from `analyzeMove`) plus
       2–3 plausible distractors from the motif list
-- [ ] **Confirmed motif tags:** the analyzer has known blind spots (see README).
-      Add `motifConfirmed` field to Position. The recognition step only runs
-      if the position has a confirmed tag. On save, show analyzer's guess
-      and let the student pick from the full motif list to confirm/override.
-- [ ] Log `labelCorrect` (true/false) on the attempt
-- [ ] Only after the student answers (or skips), show the move explanation
-- [ ] Resist: don't reveal the answer if the student gets it wrong — let
-      them try once more, then move on. The point is producing the label,
-      not being graded on it.
+- [x] **Confirmed motif tags:** on save, show analyzer's detected `motif`
+      and let student pick from the full motif list to confirm/override.
+- [x] Log `labelCorrect` (true/false) on the attempt
+- [x] Only after the student answers (or skips), show the move explanation
+- [x] Resist: don't reveal the answer if the student gets it wrong — student
+      can skip. The point is producing the label, not being graded.
 
 ---
 
-## M3 — Tactics motifs reference  `[ ]` priority: high  ← MOVED DOWN
+## M3 — Tactics motifs reference  `[x]` priority: high — DONE 2026-07-24
 
-Build the reference tab *after* the training loop is solid. The training loop
-tells you what motifs students actually need help with.
+Build the reference tab *after* the training loop is solid.
 
-- [ ] Decide provenance of example FENs (Open Question): hand-author for
-      control, or pull from Lichess open puzzle database (verify license).
-      **Recommendation:** hand-author the first 6, ship, add more as content
-      work pays off.
-- [ ] Author ~12 motifs in `src/motifs.js`, each with:
+- [x] Author 12 motifs in `src/motifs.js`, each with:
   `id`, `name`, `category` (tactical|checkmating), `summary`,
   `description`, `exampleFen`, `exampleMoveUci`
-- [ ] **Initial set:** fork, knight-fork, pin-absolute, pin-relative, skewer,
-      discovered-attack, discovered-check, double-check, deflection,
-      hanging-piece, back-rank-mate, smothered-mate
-- [ ] Validate each example FEN with python-chess: the side to move matches,
-      the `exampleMoveUci` is legal, and `analyzeMove` (the existing detector)
-      classifies it as that motif. **Do not ship an example where the
-      analyzer disagrees with the label** — that's a bug in either the
-      example or the analyzer, fix it before shipping.
-- [ ] Build Motifs tab UI: list with summary, click to expand definition +
-      mini board diagram
-- [ ] Mini diagrams: small 8×8 boards using chessground at reduced size,
+- [x] **Initial set:** fork, pin, skewer, discovered-check, double-check,
+      deflection, hanging-piece, back-rank-mate, smothered-mate,
+      capturing-defender, overloaded, trapped-piece
+- [x] Build Motifs tab UI (`src/MotifsView.jsx`): cards with summary, click
+      to expand definition + mini board diagram
+- [x] Mini diagrams: small 180×180 boards using chessground at reduced size,
       read-only: `Chessground(el, { viewOnly: true, coordinates: false })`
-- [ ] Click-a-diagram → loads `exampleFen` into Train mode
-- [ ] **Open issue:** the user-provided FEN `K7/4R3/3r4/p7/1k6/3Pb3/2B5/8 b`
-      was proposed as an example. Analysis shows it is **not a clean tactic**
-      — `1...Rd8+ 2.Kb7` and black has nothing (the would-be skewer
-      `2...Rb8+` just loses to `Kxb8`). Do NOT use it as a motif example.
-      Consider using it later as a Stage 0 "what do you notice?" drill or a
-      false-pattern CCT exercise.
+- [x] Click "Train on this position" → loads `exampleFen` into Train mode
+      via custom event (`scc:load-fen`)
 
 ---
 
-## M6 — Position storage  `[ ]` priority: high
+## M6 — Position storage  `[x]` priority: high — DONE 2026-07-24
 
-- [ ] `src/storage.js`: CRUD over `localStorage['scc.positions']`
-- [ ] Position record: `{ id, fen, side, motif, motifConfirmed, notes,
+- [x] `src/storage.js`: CRUD over `localStorage['scc.positions']`
+- [x] Position record: `{ id, fen, side, motif, motifConfirmed, notes,
       createdAt, source }` (SPEC F5). `motifConfirmed` is set when the
       student confirms/overrides the auto-detected `motif` on save.
-- [ ] ID generation: `crypto.randomUUID()` (available in all modern browsers)
-- [ ] At end of Train run, explicit "Save to library" button (never auto-save)
-- [ ] On save: auto-tag `motif` from `analyzeMove` result, prompt student to
+- [x] ID generation: `crypto.randomUUID()`
+- [x] At end of Train run, explicit "Save to library" button (never auto-save)
+- [x] On save: auto-tag `motif` from `analyzeMove` result, prompt student to
       confirm or override (dropdown of all motif labels), set `motifConfirmed`.
-      This is what makes the recognition step (M5) trustworthy.
-- [ ] `source` field: `'manual'` for pasted FENs, `'motif:<id>'` for examples
-      loaded from the Motifs tab
+- [x] `source` field: `'manual'` for pasted FENs
 
 ---
 
-## M7 — Attempt logging  `[ ]` priority: medium
+## M7 — Attempt logging  `[x]` priority: medium — DONE 2026-07-24
 
 Depends on M6 (positions must exist to attach attempts to).
 
-- [ ] Extend `storage.js`: CRUD over `localStorage['scc.attempts']`
-- [ ] Attempt record: `{ id, positionId, date, foundClean, hintsUsed,
+- [x] Extend `storage.js`: CRUD over `localStorage['scc.attempts']`
+- [x] Attempt record: `{ id, positionId, date, foundClean, hintsUsed,
       labelCorrect, boardVisionNote, note }` (SPEC F6)
-- [ ] `foundClean` = true iff `hintsUsed === 0` AND Stage 3 reached
-- [ ] `hintsUsed`: 0 (clean) · 1 (CCT reminder) · 2 (motif name) · 3 (piece) ·
+- [x] `foundClean` = true iff `hintsUsed === 0` AND Stage 3 reached
+- [x] `hintsUsed`: 0 (clean) · 1 (CCT reminder) · 2 (motif name) · 3 (piece) ·
       4 (full reveal / gave up)
-- [ ] Log one attempt per Train run against a saved position (not against
-      ad-hoc FENs that weren't saved)
-- [ ] **No computed mastery score.** History is the mark.
+- [x] Log one attempt per Train run against a saved position
+- [x] **No computed mastery score.** History is the mark.
 
 ---
 

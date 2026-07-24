@@ -26,6 +26,9 @@ export default [
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
         console: 'readonly',
+        CustomEvent: 'readonly',
+        crypto: 'readonly',
+        localStorage: 'readonly',
       },
       parserOptions: {
         ecmaFeatures: { jsx: true },

@@ -15,6 +15,7 @@ const initialState = {
     status: 'idle', // 'idle' | 'loading' | 'ready' | 'thinking'
   },
   session: null, // { targetMove, analysis, hintStage } | null
+  showRecognition: false, // true when correct move committed, waiting for motif label
   feedback: null, // { text, error } | null — transient UI message
   ui: {
     activeTab: 'Train',
@@ -70,10 +71,16 @@ function reducer(state, action) {
       return { ...state, session: null };
 
     case 'SET_FEEDBACK':
-      return { ...state, feedback: action.feedback };
+      return { ...state, feedback: action.feedback, showRecognition: false };
 
     case 'CLEAR_FEEDBACK':
       return { ...state, feedback: null };
+
+    case 'SHOW_RECOGNITION':
+      return { ...state, showRecognition: true };
+
+    case 'CLEAR_RECOGNITION':
+      return { ...state, showRecognition: false };
 
     case 'SET_TAB':
       return { ...state, ui: { ...state.ui, activeTab: action.tab } };

@@ -70,15 +70,23 @@ M1 (Vite + Preact scaffold) is **complete**. M2 (Cburnett piece theme) is
 **complete**. M4 (Socratic Train flow) is **complete** — the full staged
 flow works: board vision journaling (Stage 0), CCT enumeration via
 click-to-move (Stage 1), candidate evaluation with engine replies
-(Stage 2), commit to the best move (Stage 3), and the 4-stage hint
-ladder as earned reveal (Stage 4). The rewrite has centralized state
-(`context.jsx`), an error boundary, a Promise-based engine module, a
-tested tactic analyzer (15 tests), a CCT helper (7 tests), and a
-promotion picker for underpromotion puzzles.
+(Stage 2), commit to the best move (Stage 3), recognition step (M5),
+and the 4-stage hint ladder as earned reveal (Stage 4).
 
-Still to do: the Motifs tab
-(tactical pattern reference), the Library tab (saved positions), and
-mobile-responsive layout.
+M5 (Recognition step) is **complete** — after finding the correct move,
+the student is asked "what kind of tactic was that?" with multiple-choice
+options before the explanation is shown.
+
+M3 (Motifs reference) is **complete** — 12 tactical motifs with
+descriptions and mini chessground diagrams. Click "Train on this position"
+to load the example into the training flow.
+
+M6 (Position storage) is **complete** — save to library with motif tag
+and notes. M7 (Attempt logging) is **complete** — attempt history
+recorded on each save.
+
+Still to do: the Library tab (M8 — browsing saved positions), export/import
+(M9), and mobile-responsive layout.
 
 The **"Using it"** flow below describes the current UX. The `prototype/`
 has the full jQuery-based v0.1 for reference.

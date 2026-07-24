@@ -4,6 +4,8 @@ import { createEngine } from './lib/engine.js';
 import { analyzeMove } from './lib/analyzer.js';
 import { listChecksAndCaptures, findForcingMatch } from './lib/cct.js';
 import { useAppState, useAppDispatch } from './context.jsx';
+import { MOTIFS, analysisToMotif, getDistractors, getMotif } from './motifs.js';
+import { addPosition, addAttempt } from './storage.js';
 
 const SIDES = [
   { value: 'fen', label: 'From FEN' },
@@ -86,6 +88,20 @@ function explainMove(a) {
   return parts.join(', and ') + '.';
 }
 
+function buildCelebration(analysis) {
+  if (!analysis) return '🎉 Correct! That is the best move.';
+  const piece = PIECE_NAMES[analysis.movingType];
+  const to = analysis.to;
+  let why = '';
+  if (analysis.isFork) why = ` — it's a fork attacking ${analysis.forkTargets.length} pieces`;
+  else if (analysis.pinInfo && analysis.pinInfo.type === 'pin')
+    why = ` — it pins the enemy ${piece} to the king`;
+  else if (analysis.pinInfo && analysis.pinInfo.type === 'skewer') why = ' — it\'s a skewer';
+  else if (analysis.isDiscoveredCheck) why = ' — a discovered check';
+  else if (analysis.isDirectCheck) why = ' — a direct check';
+  return `🎉 Correct! ${piece} to ${to} is the best move.${why}`;
+}
+
 function applySideOverride(fen, side) {
   if (side === 'fen') return fen;
   const fields = fen.split(/\s+/);
@@ -101,7 +117,7 @@ function applySideOverride(fen, side) {
 // ---------------------------------------------------------------------------
 
 export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHandlerRef }) {
-  const { feedback } = useAppState();
+  const { feedback, showRecognition } = useAppState();
   const dispatch = useAppDispatch();
   const engineRef = useRef(null);
 
@@ -119,7 +135,7 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
   const [hintStage, setHintStage] = useState(0);
 
   // Socratic staged flow state
-  const [socraticStage, setSocraticStage] = useState(null); // null = not started, 0-3
+  const [socraticStage, setSocraticStage] = useState(null);
   const [visionNote, setVisionNote] = useState('');
   const [cctFound, setCctFound] = useState([]);
   const [cctTarget, setCctTarget] = useState(null);
@@ -128,6 +144,19 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
   const [engineReply, setEngineReply] = useState(null);
   const [engineReplyAnalysis, setEngineReplyAnalysis] = useState(null);
   const currentFenRef = useRef(null);
+  const currentSideRef = useRef(null);
+
+  // Recognition state (M5)
+  const [recognitionOptions, setRecognitionOptions] = useState([]);
+  const [recognitionCorrectId, setRecognitionCorrectId] = useState(null);
+  const [recognitionAnswered, setRecognitionAnswered] = useState(false);
+  const [labelCorrect, setLabelCorrect] = useState(null);
+
+  // Save state (M6)
+  const [showSave, setShowSave] = useState(false);
+  const [saveMotif, setSaveMotif] = useState('');
+  const [saveNotes, setSaveNotes] = useState('');
+  const [saved, setSaved] = useState(false);
 
   // Init engine on mount, destroy on unmount
   useEffect(() => {
@@ -144,8 +173,20 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
     return () => eng.destroy();
   }, []);
 
+  // Listen for FEN load requests from Motifs tab
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail && e.detail.fen) {
+        setFenInput(e.detail.fen);
+        setSide('fen');
+        setTimeout(() => loadPosition(e.detail.fen), 0);
+      }
+    };
+    window.addEventListener('scc:load-fen', handler);
+    return () => window.removeEventListener('scc:load-fen', handler);
+  }, [loadPosition]);
+
   // ---- Board mode management ----
-  // Derived from socraticStage: view | enumerate | try | commit
   const getBoardMode = useCallback(() => {
     if (socraticStage === 0) return 'view';
     if (socraticStage === 1) return 'enumerate';
@@ -154,12 +195,10 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
     return 'view';
   }, [socraticStage]);
 
-  // Notify parent of board mode changes
   useEffect(() => {
     if (onBoardModeChange) onBoardModeChange(getBoardMode());
   }, [socraticStage, onBoardModeChange, getBoardMode]);
 
-  // Register the probe handler based on current stage
   useEffect(() => {
     if (!probeHandlerRef) return;
     if (socraticStage === 1) {
@@ -182,7 +221,6 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
       if (next === 0) {
         setMessage('');
       } else if (next === 1) {
-        // Compute CCTs for this position
         const ccts = listChecksAndCaptures(currentFenRef.current);
         setCctTarget(ccts);
         setCctFound([]);
@@ -221,6 +259,7 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
       }
 
       currentFenRef.current = fen;
+      currentSideRef.current = game.turn();
       setTargetMove(null);
       setAnalysis(null);
       setHintStage(0);
@@ -232,6 +271,14 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
       setCandidateInfo(null);
       setEngineReply(null);
       setEngineReplyAnalysis(null);
+      setRecognitionOptions([]);
+      setRecognitionCorrectId(null);
+      setRecognitionAnswered(false);
+      setLabelCorrect(null);
+      setShowSave(false);
+      setSaveMotif('');
+      setSaveNotes('');
+      setSaved(false);
       setMessageError(false);
       setLoading(true);
       setStatus('Engine thinking…');
@@ -241,6 +288,7 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
       dispatch({ type: 'SET_ORIENTATION', orientation: game.turn() === 'b' ? 'black' : 'white' });
       dispatch({ type: 'SET_LAST_MOVE', lastMove: null });
       dispatch({ type: 'SESSION_END' });
+      dispatch({ type: 'CLEAR_RECOGNITION' });
 
       const eng = engineRef.current;
       if (!eng) return;
@@ -266,8 +314,6 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
         setLoading(false);
 
         dispatch({ type: 'SESSION_START', targetMove: bestMove, analysis: result });
-
-        // Start the Socratic flow at Stage 0
         enterStage(0);
       } catch {
         setStatus('Engine error');
@@ -319,7 +365,6 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
       setCandidateUci(moveInfo.uci);
       setCandidateInfo(moveInfo);
 
-      // Make the candidate move on a scratch board, then engine-analyze the reply
       const eng = engineRef.current;
       if (!eng) return;
 
@@ -348,13 +393,98 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
     [],
   );
 
-  // ---- Stage 2 → 3 transition ----
-
   const handleEvalDone = useCallback(() => {
     enterStage(3);
   }, [enterStage]);
 
-  // ---- Hint ladder (Stage 4, same as before) ----
+  // ---- Recognition step (M5) ----
+
+  // When showRecognition becomes true, set up the multiple-choice question
+  useEffect(() => {
+    if (!showRecognition || !analysis) return;
+    const correctId = analysisToMotif(analysis);
+    const distractors = getDistractors(correctId, 3);
+    const options = [correctId, ...distractors];
+    // Shuffle
+    for (let i = options.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [options[i], options[j]] = [options[j], options[i]];
+    }
+    setRecognitionOptions(options);
+    setRecognitionCorrectId(correctId);
+    setRecognitionAnswered(false);
+    setLabelCorrect(null);
+    setMessage('Before I explain — what kind of tactic was that?');
+  }, [showRecognition, analysis]);
+
+  const handleRecognitionAnswer = useCallback(
+    (pickedId) => {
+      if (recognitionAnswered) return;
+      setRecognitionAnswered(true);
+      const correct = pickedId === recognitionCorrectId;
+      setLabelCorrect(correct);
+
+      // Show the explanation/celebration
+      const celebration = buildCelebration(analysis);
+      dispatch({
+        type: 'SET_FEEDBACK',
+        feedback: { text: celebration, error: false },
+      });
+    },
+    [recognitionAnswered, recognitionCorrectId, analysis, dispatch],
+  );
+
+  const handleSkipRecognition = useCallback(() => {
+    if (recognitionAnswered) return;
+    setRecognitionAnswered(true);
+    setLabelCorrect(null);
+    const celebration = buildCelebration(analysis);
+    dispatch({
+      type: 'SET_FEEDBACK',
+      feedback: { text: celebration, error: false },
+    });
+  }, [recognitionAnswered, analysis, dispatch]);
+
+  // ---- Save to library (M6) ----
+
+  const handleShowSave = useCallback(() => {
+    const correctId = analysis ? analysisToMotif(analysis) : 'unknown';
+    setSaveMotif(correctId);
+    setShowSave(true);
+  }, [analysis]);
+
+  const handleSave = useCallback(() => {
+    if (!currentFenRef.current) return;
+    const id = crypto.randomUUID();
+    const position = {
+      id,
+      fen: currentFenRef.current,
+      side: currentSideRef.current,
+      motif: saveMotif,
+      motifConfirmed: saveMotif,
+      notes: saveNotes || undefined,
+      createdAt: new Date().toISOString(),
+      source: 'manual',
+    };
+    addPosition(position);
+
+    // Log the attempt (M7)
+    const attempt = {
+      id: crypto.randomUUID(),
+      positionId: id,
+      date: new Date().toISOString(),
+      foundClean: hintStage === 0,
+      hintsUsed: hintStage,
+      labelCorrect,
+      boardVisionNote: visionNote || undefined,
+    };
+    addAttempt(attempt);
+
+    setSaved(true);
+    setShowSave(false);
+  }, [saveMotif, saveNotes, hintStage, labelCorrect, visionNote]);
+
+  // ---- Hint ladder (Stage 4) ----
 
   const handleHint = useCallback(() => {
     if (!targetMove || !analysis) return;
@@ -387,7 +517,7 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
     <>
       <div id="status">Status: {status}</div>
 
-      {!isActive && (
+      {!isActive && !showRecognition && !feedback && (
         <>
           <select
             class="sample-select"
@@ -524,17 +654,81 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
       )}
 
       {/* ---- Stage 3: Commit — hint + give-up ---- */}
-      {socraticStage === 3 && targetMove && !feedback && (
+      {socraticStage === 3 && targetMove && !feedback && !showRecognition && (
         <button class="btn-hint" onClick={handleHint}>
           I need a hint
         </button>
       )}
 
+      {/* ---- Recognition step (M5) ---- */}
+      {showRecognition && !recognitionAnswered && (
+        <div class="socratic-stage recognition-step">
+          <div class="stage-prompt">
+            Before I explain — what kind of tactic was that?
+          </div>
+          <div class="recognition-options">
+            {recognitionOptions.map((id) => {
+              const motif = getMotif(id);
+              return (
+                <button
+                  key={id}
+                  class="recognition-btn"
+                  onClick={() => handleRecognitionAnswer(id)}
+                >
+                  {motif ? motif.name : id}
+                </button>
+              );
+            })}
+          </div>
+          <button class="btn-hint" onClick={handleSkipRecognition}>
+            Skip — just show me
+          </button>
+        </div>
+      )}
+
       {/* ---- Post-solve / feedback ---- */}
       {feedback && (
-        <button class="btn-next" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          Pick another sample puzzle above or paste a new FEN.
-        </button>
+        <div class="solved-actions">
+          {!saved && (
+            <button class="btn-save" onClick={handleShowSave}>
+              Save to library
+            </button>
+          )}
+          {saved && (
+            <div class="save-confirmation">Saved to library!</div>
+          )}
+          <button class="btn-next" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            Pick another puzzle above or paste a new FEN.
+          </button>
+        </div>
+      )}
+
+      {/* ---- Save dialog (M6) ---- */}
+      {showSave && (
+        <div class="save-dialog">
+          <div class="save-label">Motif:</div>
+          <select
+            class="save-motif-select"
+            value={saveMotif}
+            onChange={(e) => setSaveMotif(e.target.value)}
+          >
+            {MOTIFS.map((m) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+            <option value="unknown">Unknown / Other</option>
+          </select>
+          <textarea
+            class="vision-input"
+            placeholder="Notes (optional)"
+            value={saveNotes}
+            onInput={(e) => setSaveNotes(e.target.value)}
+            rows={2}
+          />
+          <div class="btn-row">
+            <button class="btn-main" onClick={handleSave}>Save</button>
+            <button class="btn-flip" onClick={() => setShowSave(false)}>Cancel</button>
+          </div>
+        </div>
       )}
 
       <div id="message" class={messageError || (feedback && feedback.error) ? 'error' : ''}>
