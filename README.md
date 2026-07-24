@@ -60,9 +60,10 @@ npm run lint       # eslint on src/
 npm run format     # prettier --write on src/
 ```
 
-The tactic analyzer (`src/lib/analyzer.js`) is the only code with test
-coverage today — 15 tests across all detected tactic types. Run them before
-touching anything chess-logic-related.
+The tactic analyzer (`src/lib/analyzer.js`) and CCT helper (`src/lib/cct.js`)
+have test coverage — 22 tests across all detected tactic types and
+forcing-move enumeration. Run them before touching anything
+chess-logic-related.
 
 ## Current status
 
@@ -97,16 +98,23 @@ has the full jQuery-based v0.1 for reference.
    from both sides).
 4. Click **Load Position** (sample puzzles auto-load). The engine analyzes
    for up to ~4 seconds. The status line shows live depth as it searches.
-5. Try to find the best move on the board. Legal-but-wrong moves snap back
-   with a nudge to keep looking.
-6. Stuck? Click **I need a hint** — it escalates through four stages:
-   1. A general reminder to check for checks, captures, and undefended pieces
-   2. The specific *category* of tactic present (fork, pin, skewer, etc.)
-   3. Which piece is the key one
-   4. The full move, with an explanation of why it works
-7. When you find it, a celebration message appears and you can pick another
-   puzzle.
-8. **⇅ Flip** flips the board orientation at any time.
+5. **Stage 0 — Board vision:** Before looking for a move, write down what
+   stands out about the position. (Ungraded — just journaling.)
+6. **Stage 1 — CCT enumeration:** Click moves on the board to try every
+   check and capture. They snap back after you try them. A running count
+   tracks how many you found.
+7. **Stage 2 — Candidate evaluation:** Play a candidate move. The engine
+   shows the opponent's best reply so you can evaluate the line.
+8. **Stage 3 — Commit:** Play the move you think is strongest. Correct
+   moves advance to recognition; wrong moves snap back.
+9. **Recognition:** "What kind of tactic was that?" — pick from 4
+   multiple-choice options. Then the explanation is shown.
+10. **Hint ladder:** Stuck at any stage? Click **I need a hint** for
+    escalating clues (general reminder → tactic category → key piece →
+    full move with explanation).
+11. **Save to library:** After solving, save the position with a motif tag
+    and optional notes.
+12. **⇅ Flip** flips the board orientation at any time.
 
 ## Licensing
 

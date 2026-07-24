@@ -61,7 +61,8 @@ chessground ships with Cburnett built in — this is now a CSS import.
 - [x] Remove `pieceDataUri` and `PIECE_GLYPHS` from the new codebase (never
       ported — only existed in `prototype/app.js`)
 - [x] Add Cburnett attribution (CC-BY-SA) to README (done — verified 2026-07-18)
-- [ ] Verify rendering at the board's display size; check both colors
+- [x] Verify rendering at the board's display size; check both colors
+      (verified — Cburnett theme renders correctly at 400×400)
 
 ---
 

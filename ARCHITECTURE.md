@@ -280,9 +280,7 @@ unhandled error in any component.
 
 ## 8. File layout (current state, updated 2026-07-24)
 
-Files marked **(M1)** exist now; files marked **(planned)** don't yet —
-they're the target layout from the milestones below. See `TODO.md` for which
-milestone each planned file belongs to.
+All milestones complete. See `TODO.md` for the full milestone task list.
 
 ```
 app_tactics_coach/
