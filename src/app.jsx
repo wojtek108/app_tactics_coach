@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'preact/hooks';
+import { useState, useCallback, useRef } from 'preact/hooks';
 import './app.css';
 import { Board } from './Board.jsx';
 import { TrainPanel } from './TrainPanel.jsx';
@@ -16,6 +16,11 @@ export function App() {
   const [feedback, setFeedback] = useState(null);
   const [puzzleSolved, setPuzzleSolved] = useState(false);
 
+  // Latest analysis from the engine, stored in a ref so the Board's
+  // onCorrectMove handler (which has a stale closure over trainPanel state)
+  // can still produce a celebration message.
+  const analysisRef = useRef(null);
+
   const handleFlip = useCallback(() => {
     setOrientation((o) => (o === 'white' ? 'black' : 'white'));
   }, []);
@@ -29,6 +34,12 @@ export function App() {
     setPuzzleSolved(false);
   }, []);
 
+  // TrainPanel calls this when the engine finishes analyzing, so App
+  // can produce a celebration message when the user finds the move.
+  const handleAnalysisReady = useCallback((analysis) => {
+    analysisRef.current = analysis;
+  }, []);
+
   const handleWrongMove = useCallback(() => {
     setFeedback({ text: "That's legal, but there's a much better way. Try again!", error: false });
   }, []);
@@ -36,7 +47,27 @@ export function App() {
   const handleCorrectMove = useCallback(() => {
     setPuzzleSolved(true);
     setTargetMove(null);
-    setFeedback(null);
+
+    // Build celebration from the analysis ref — avoids dependency on
+    // TrainPanel's useEffect which can fail if analysis state is stale.
+    const a = analysisRef.current;
+    if (a) {
+      const piece = { p: 'Pawn', n: 'Knight', b: 'Bishop', r: 'Rook', q: 'Queen', k: 'King' }[a.movingType];
+      const to = a.to;
+      let why = '';
+      if (a.isFork) why = ` — it's a fork attacking ${a.forkTargets.length} pieces`;
+      else if (a.pinInfo && a.pinInfo.type === 'pin') why = ` — it pins the enemy ${piece} to the king`;
+      else if (a.pinInfo && a.pinInfo.type === 'skewer') why = ` — it's a skewer`;
+      else if (a.isDiscoveredCheck) why = ' — a discovered check';
+      else if (a.isDirectCheck) why = ' — a direct check';
+
+      setFeedback({
+        text: `🎉 Correct! ${piece} to ${to} is the best move.${why}`,
+        error: false,
+      });
+    } else {
+      setFeedback({ text: '🎉 Correct! That is the best move.', error: false });
+    }
   }, []);
 
   return (
@@ -72,6 +103,7 @@ export function App() {
             onFlip={handleFlip}
             feedback={feedback}
             puzzleSolved={puzzleSolved}
+            onAnalysisReady={handleAnalysisReady}
           />
         )}
 

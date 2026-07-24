@@ -108,7 +108,11 @@ The training loop *is* the product.
       Currently: simplified single-pass (correct = celebrate, wrong = snap back).
       Aspirational: wrong-move coaching — show opponent's punishing reply.
 - [x] **Stage 4 — Earned reveal** — DONE (hint ladder)
-- [ ] **Promotion picker:** chessground `events.promotion` callback. Q/R/B/N overlay.
+- [x] **Promotion picker:** Q/R/B/N overlay when a pawn reaches the last rank.
+      chessground has no built-in promotion event (ARCHITECTURE was wrong on
+      that point) — Board.jsx intercepts the move, snaps back, shows an
+      overlay, then commits with the chosen piece. Training compares the full
+      UCI including underpromotions (e.g. `e7e8n`). Escape / backdrop cancels.
 
 ---
 
@@ -258,8 +262,8 @@ motifs. Full M3 content work comes after the training loop is solid.
       2026-07-18. See ARCHITECTURE.md §1.
 - [x] **Engine API:** Promise-based `createEngine()` module. Decided
       2026-07-18. See ARCHITECTURE.md §5.
-- [x] **Promotion picker:** included in M4. chessground's `events.promotion`
-      callback makes it straightforward. See ARCHITECTURE.md §6.
+- [x] **Promotion picker:** included in M4 (done). Custom Q/R/B/N overlay in
+      Board.jsx — chessground has no promotion API. See ARCHITECTURE.md §6.
 - [x] **Test/lint/format tooling:** Vitest (Vite-native) + ESLint 9 flat
       config + Prettier. Decided 2026-07-18. Preact is treated as
       React-compatible for the react/react-hooks plugins; JSX runtime is

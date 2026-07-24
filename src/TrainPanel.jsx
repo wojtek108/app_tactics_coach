@@ -100,7 +100,7 @@ function applySideOverride(fen, side) {
 // Component
 // ---------------------------------------------------------------------------
 
-export function TrainPanel({ onLoad, onFlip, feedback, puzzleSolved }) {
+export function TrainPanel({ onLoad, onFlip, feedback, puzzleSolved, onAnalysisReady }) {
   const engineRef = useRef(null);
 
   const [fenInput, setFenInput] = useState('');
@@ -130,13 +130,8 @@ export function TrainPanel({ onLoad, onFlip, feedback, puzzleSolved }) {
     return () => engine.destroy();
   }, []);
 
-  // When puzzle is solved, show celebration
-  useEffect(() => {
-    if (puzzleSolved && analysis) {
-      setMessage(`YES! That is the strongest move. ${explainMove(analysis)}`);
-      setStatus('Solved!');
-    }
-  }, [puzzleSolved, analysis]);
+  // Celebration is now handled by App via the feedback prop, which
+  // uses onAnalysisReady to get the analysis data directly.
 
   const handleLoad = useCallback(async () => {
     if (!fenInput.trim()) {
@@ -189,6 +184,7 @@ export function TrainPanel({ onLoad, onFlip, feedback, puzzleSolved }) {
       const result = analyzeMove(fen, bestMove);
       setTargetMove(bestMove);
       setAnalysis(result);
+      onAnalysisReady(result);
       setHintStage(0);
       setStatus('Ready for training!');
       setMessage('Find the best move on the board.');
@@ -201,7 +197,7 @@ export function TrainPanel({ onLoad, onFlip, feedback, puzzleSolved }) {
       setMessage('Something went wrong with the engine. Try reloading.', true);
       setLoading(false);
     }
-  }, [fenInput, side, onLoad]);
+  }, [fenInput, side, onLoad, onAnalysisReady]);
 
   // Auto-load a sample position when selected
   const handleSampleChange = useCallback(
@@ -241,6 +237,7 @@ export function TrainPanel({ onLoad, onFlip, feedback, puzzleSolved }) {
           const result = analyzeMove(fen, bestMove);
           setTargetMove(bestMove);
           setAnalysis(result);
+          onAnalysisReady(result);
           setHintStage(0);
           setStatus('Ready for training!');
           setMessage('Find the best move on the board.');
@@ -253,7 +250,7 @@ export function TrainPanel({ onLoad, onFlip, feedback, puzzleSolved }) {
         });
       }, 0);
     },
-    [onLoad],
+    [onLoad, onAnalysisReady],
   );
 
   const handleHint = useCallback(() => {

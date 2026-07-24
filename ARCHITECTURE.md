@@ -222,31 +222,21 @@ handlers.
 
 ## 6. Promotion picker
 
-**Decision:** Wire chessground's `events.promotion` callback in M4. Do not
-defer.
+**Decision:** Custom Q/R/B/N overlay in `Board.jsx` (M4). Done.
 
-**Why:** chessground has a built-in promotion mechanism — you supply a
-callback that returns the chosen piece. This was impractical with
-chessboard.js (hardcoded `'q'`), but chessground makes it straightforward.
+**Correction:** chessground has **no** `events.promotion` callback — it is
+board-UI only and just moves pieces visually. Promotion is entirely the
+app's job (ARCHITECTURE originally claimed otherwise).
 
-**Implementation (~40 lines):**
+**Implementation:**
+1. On `events.move`, detect pawn-to-last-rank via chess.js.
+2. Snap the board back to the pre-move FEN and open a picker overlay.
+3. On piece pick, commit with `game.move({ from, to, promotion })` and
+   compare the full UCI (e.g. `e7e8n`) against the engine target.
+4. Escape / backdrop click cancels (user re-moves the pawn).
 
-```js
-// In chessground config
-events: {
-  promotion: (orig, dest, piece) => {
-    // Show overlay with 4 buttons (Q, R, B, N)
-    // Return a Promise that resolves when the user picks
-    return new Promise((resolve) => {
-      showPromotionOverlay(dest, resolve);
-    });
-  },
-}
-```
-
-Default to Queen if the user clicks off the overlay. This removes a real
-training defect — underpromotion puzzles (stalemate tricks, knight-promotion
-mates) exist and are pedagogically valuable.
+This removes a real training defect — underpromotion puzzles (stalemate
+tricks, knight-promotion mates) exist and are pedagogically valuable.
 
 ---
 
