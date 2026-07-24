@@ -173,19 +173,6 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
     return () => eng.destroy();
   }, []);
 
-  // Listen for FEN load requests from Motifs tab
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.detail && e.detail.fen) {
-        setFenInput(e.detail.fen);
-        setSide('fen');
-        setTimeout(() => loadPosition(e.detail.fen), 0);
-      }
-    };
-    window.addEventListener('scc:load-fen', handler);
-    return () => window.removeEventListener('scc:load-fen', handler);
-  }, [loadPosition]);
-
   // ---- Board mode management ----
   const getBoardMode = useCallback(() => {
     if (socraticStage === 0) return 'view';
@@ -198,18 +185,6 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
   useEffect(() => {
     if (onBoardModeChange) onBoardModeChange(getBoardMode());
   }, [socraticStage, onBoardModeChange, getBoardMode]);
-
-  useEffect(() => {
-    if (!probeHandlerRef) return;
-    if (socraticStage === 1) {
-      probeHandlerRef.current = handleEnumerateProbe;
-    } else if (socraticStage === 2) {
-      probeHandlerRef.current = handleCandidateProbe;
-    } else {
-      probeHandlerRef.current = null;
-    }
-    return () => { probeHandlerRef.current = null; };
-  }, [socraticStage, probeHandlerRef, handleEnumerateProbe, handleCandidateProbe]);
 
   // ---- Stage transitions ----
 
@@ -324,6 +299,19 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
     [dispatch, onAnalysisReady, enterStage],
   );
 
+  // Listen for FEN load requests from Motifs tab
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail && e.detail.fen) {
+        setFenInput(e.detail.fen);
+        setSide('fen');
+        setTimeout(() => loadPosition(e.detail.fen), 0);
+      }
+    };
+    window.addEventListener('scc:load-fen', handler);
+    return () => window.removeEventListener('scc:load-fen', handler);
+  }, [loadPosition]);
+
   const handleLoad = useCallback(() => {
     if (!fenInput.trim()) {
       setMessage('Paste a FEN first.');
@@ -396,6 +384,18 @@ export function TrainPanel({ onFlip, onAnalysisReady, onBoardModeChange, probeHa
   const handleEvalDone = useCallback(() => {
     enterStage(3);
   }, [enterStage]);
+
+  useEffect(() => {
+    if (!probeHandlerRef) return;
+    if (socraticStage === 1) {
+      probeHandlerRef.current = handleEnumerateProbe;
+    } else if (socraticStage === 2) {
+      probeHandlerRef.current = handleCandidateProbe;
+    } else {
+      probeHandlerRef.current = null;
+    }
+    return () => { probeHandlerRef.current = null; };
+  }, [socraticStage, probeHandlerRef, handleEnumerateProbe, handleCandidateProbe]);
 
   // ---- Recognition step (M5) ----
 

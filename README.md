@@ -70,6 +70,8 @@ chess-logic-related.
 All milestones **complete**. The Socratic Chess Coach is a fully functional
 tactics trainer with:
 
+- **Side-by-side layout**: chessboard on the left, training panel on the
+  right. No scrolling needed.
 - **Staged Socratic flow** (M4): board vision → CCT enumeration → candidate
   evaluation with engine replies → commit → recognition → explanation
 - **Recognition step** (M5): "What kind of tactic was that?" after finding
@@ -89,6 +91,8 @@ The **"Using it"** flow below describes the current UX. The `prototype/`
 has the full jQuery-based v0.1 for reference.
 
 ## Using it
+
+The board sits on the left and the training panel on the right.
 
 1. Wait for **Status: Engine ready**.
 2. Pick a sample puzzle from the dropdown, or paste a FEN (from Lichess,

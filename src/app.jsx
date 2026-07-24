@@ -74,43 +74,47 @@ function AppInner() {
       <div class="app">
         <h1>♟ Socratic Chess Coach</h1>
 
-        <Board
-          fen={board.fen}
-          orientation={board.orientation}
-          lastMove={board.lastMove}
-          onMove={(lm) => dispatch({ type: 'SET_LAST_MOVE', lastMove: lm })}
-          mode={boardMode}
-          targetMove={session ? session.targetMove : null}
-          onWrongMove={handleWrongMove}
-          onCorrectMove={handleCorrectMove}
-          onProbeMove={boardMode === 'enumerate' || boardMode === 'try' ? handleBoardProbe : undefined}
-        />
-
-        <div class="panel">
-          <div class="tabs">
-            {TABS.map((tab) => (
-              <button
-                key={tab}
-                class={`tab-btn ${ui.activeTab === tab ? 'active' : ''}`}
-                onClick={() => dispatch({ type: 'SET_TAB', tab })}
-              >
-                {tab}
-              </button>
-            ))}
+        <div class="main-row">
+          <div class="board-col">
+            <Board
+              fen={board.fen}
+              orientation={board.orientation}
+              lastMove={board.lastMove}
+              onMove={(lm) => dispatch({ type: 'SET_LAST_MOVE', lastMove: lm })}
+              mode={boardMode}
+              targetMove={session ? session.targetMove : null}
+              onWrongMove={handleWrongMove}
+              onCorrectMove={handleCorrectMove}
+              onProbeMove={boardMode === 'enumerate' || boardMode === 'try' ? handleBoardProbe : undefined}
+            />
           </div>
 
-          {ui.activeTab === 'Train' && (
-            <TrainPanel
-              onFlip={handleFlip}
-              onAnalysisReady={handleAnalysisReady}
-              onBoardModeChange={setBoardMode}
-              probeHandlerRef={probeHandlerRef}
-            />
-          )}
+          <div class="panel">
+            <div class="tabs">
+              {TABS.map((tab) => (
+                <button
+                  key={tab}
+                  class={`tab-btn ${ui.activeTab === tab ? 'active' : ''}`}
+                  onClick={() => dispatch({ type: 'SET_TAB', tab })}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
 
-          {ui.activeTab === 'Motifs' && <MotifsView />}
+            {ui.activeTab === 'Train' && (
+              <TrainPanel
+                onFlip={handleFlip}
+                onAnalysisReady={handleAnalysisReady}
+                onBoardModeChange={setBoardMode}
+                probeHandlerRef={probeHandlerRef}
+              />
+            )}
 
-          {ui.activeTab === 'Library' && <LibraryView />}
+            {ui.activeTab === 'Motifs' && <MotifsView />}
+
+            {ui.activeTab === 'Library' && <LibraryView />}
+          </div>
         </div>
       </div>
     </ErrorBoundary>

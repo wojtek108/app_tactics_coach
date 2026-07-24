@@ -51,6 +51,12 @@ Replace the single-file architecture with Vite + Preact + chessground.
 
 **Status: M1 complete.** Centralized state and error boundary landed 2026-07-24.
 
+### Cleanup (post-M1)
+- [x] Fix temporal dead zone crash: `useEffect` hooks referenced `loadPosition`
+      and `handleEnumerateProbe`/`handleCandidateProbe` before their `useCallback`
+      definitions — moved effects after the functions they depend on.
+- [x] Side-by-side layout: board left, panel right. No scrolling needed.
+
 ---
 
 ## M2 — Cburnett piece theme  `[x]` priority: medium

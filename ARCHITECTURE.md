@@ -128,6 +128,25 @@ itself a pattern-recognition exercise.
 
 ---
 
+## 3a. Layout: side-by-side board + panel
+
+**Decision:** Chessboard on the left, training panel on the right, in a
+horizontal flex row. Panel scrolls internally if content overflows.
+
+**Why:** The previous vertical (stacked) layout required scrolling to see the
+controls below the board. Side-by-side fits on a standard 1280×720+ screen
+without scrolling, and the board stays visible while training.
+
+**Implementation:**
+- `app.jsx`: Board and panel wrapped in `<div class="main-row">`
+- `app.css`: `.main-row` is `display: flex; gap: 20px`. `.board-col`
+  (board wrapper) is `flex-shrink: 0`. `.panel` is `max-height: 400px;
+  overflow-y: auto` so it matches the board height and scrolls.
+- `index.css`: body padding simplified (removed `min-height: 100vh` and
+  `display: flex; justify-content: center` that forced vertical stacking).
+
+---
+
 ## 4. Analyzer tests (vitest)
 
 **Decision:** `src/lib/analyzer.test.js` with 15 tests, written test-first
@@ -256,6 +275,13 @@ tricks, knight-promotion mates) exist and are pedagogically valuable.
 the Stockfish worker throws an unhandled error, Preact unmounts the entire
 component tree. The user sees a white screen with no indication of what
 happened.
+
+**Lesson learned (2026-07-24):** The ErrorBoundary correctly caught a
+`ReferenceError: Cannot access 'loadPosition' before initialization` caused
+by `useEffect` hooks referencing `useCallback` functions defined later in the
+file. JavaScript `const`/`let` have a temporal dead zone — they are not
+hoisted like `var`. Every `useEffect` that depends on a `useCallback` must
+appear *after* that callback's definition in the component body.
 
 **Implementation:** Use `preact/compat`'s `ComponentDidCatch` or write a
 15-line class component:

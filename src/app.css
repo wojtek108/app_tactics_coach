@@ -12,6 +12,16 @@ h1 {
   color: #fff;
 }
 
+.main-row {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.board-col {
+  flex-shrink: 0;
+}
+
 /* ---- Board ---- */
 .board-wrap {
   position: relative;
@@ -116,6 +126,8 @@ h1 {
 /* ---- Panel ---- */
 .panel {
   width: 400px;
+  max-height: 400px;
+  overflow-y: auto;
   background: #1e1e1e;
   padding: 20px;
   border-radius: 8px;
