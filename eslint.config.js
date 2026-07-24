@@ -29,6 +29,9 @@ export default [
         CustomEvent: 'readonly',
         crypto: 'readonly',
         localStorage: 'readonly',
+        Blob: 'readonly',
+        URL: 'readonly',
+        FileReader: 'readonly',
       },
       parserOptions: {
         ecmaFeatures: { jsx: true },

@@ -5,6 +5,7 @@ import { AppProvider, useAppState, useAppDispatch } from './context.jsx';
 import { Board } from './Board.jsx';
 import { TrainPanel } from './TrainPanel.jsx';
 import { MotifsView } from './MotifsView.jsx';
+import { LibraryView } from './LibraryView.jsx';
 
 const TABS = ['Train', 'Motifs', 'Library'];
 
@@ -109,11 +110,7 @@ function AppInner() {
 
           {ui.activeTab === 'Motifs' && <MotifsView />}
 
-          {ui.activeTab === 'Library' && (
-            <div style="text-align:center; padding:40px; color:#666;">
-              Position library — coming soon (M8)
-            </div>
-          )}
+          {ui.activeTab === 'Library' && <LibraryView />}
         </div>
       </div>
     </ErrorBoundary>

@@ -300,6 +300,7 @@ app_tactics_coach/
     Board.jsx             chessground wrapper component (M1)
     TrainPanel.jsx        Train tab: staged Socratic flow, recognition, save (M1, M4, M5, M6)
     MotifsView.jsx        Motifs reference tab with mini boards (M3)
+    LibraryView.jsx       Library tab: saved positions, filters, export/import (M8, M9)
     lib/
       engine.js           Promise-based Stockfish worker API (M1)
       analyzer.js         tactic detection, ported from v0.1 (M1)

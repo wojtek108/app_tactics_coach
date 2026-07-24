@@ -45,7 +45,8 @@ Replace the single-file architecture with Vite + Preact + chessground.
 ### Cleanup
 - [x] **Fix initial board not rendering.** (Fixed 2026-07-22)
 - [x] **Fix `applySideOverride` FEN padding** — rewritten to construct FEN field-by-field.
-- [ ] Delete old `index.html`, `app.js` once the Vite version is confirmed working.
+- [x] Delete old `index.html`, `app.js` — done. Root `index.html` is the Vite
+      entry. `prototype/` preserved for reference.
 - [x] Verify: `npm run dev`, load a FEN, get hints, find the move.
 
 **Status: M1 complete.** Centralized state and error boundary landed 2026-07-24.
@@ -164,33 +165,32 @@ Depends on M6 (positions must exist to attach attempts to).
 
 ---
 
-## M8 — Library view  `[ ]` priority: medium
+## M8 — Library view  `[x]` priority: medium — DONE 2026-07-24
 
 Depends on M6 + M7.
 
-- [ ] Table of saved positions: thumbnail board, motif tag, last-attempted
+- [x] Table of saved positions: thumbnail board, motif tag, last-attempted
       date, attempt count, notes preview
-- [ ] **Default sort: longest-unseen** (most recent attempt date, or
+- [x] **Default sort: longest-unseen** (most recent attempt date, or
       `createdAt` if never attempted). The gentle nudge that replaces SR.
-- [ ] Filters:
+- [x] Filters:
   - by motif (dropdown, populated from distinct tags in library)
   - "needs work" — last attempt gave up (`hintsUsed === 4`) or needed ≥3 hints
   - free-text over FEN / notes
-- [ ] Row actions: Train (loads position into Train tab), Edit (motif/notes),
+- [x] Row actions: Train (loads position into Train tab), Edit (motif/notes),
       Delete (with confirm)
-- [ ] Empty state: "No positions yet. Train on a FEN and save it, or click a
+- [x] Empty state: "No positions yet. Train on a FEN and save it, or click a
       motif in the Motifs tab."
 
 ---
 
-## M9 — Export / import  `[ ]` priority: medium
+## M9 — Export / import  `[x]` priority: medium — DONE 2026-07-24
 
-- [ ] Export: download `scc-library-YYYY-MM-DD.json` containing both
+- [x] Export: download `scc-library-YYYY-MM-DD.json` containing both
       `positions` and `attempts` arrays
-- [ ] Import: file picker, parse JSON, validate shape, offer merge-by-id or
-      replace-all
-- [ ] Add Export/Import buttons to Library view
-- [ ] Document the format in README so it's not a black box
+- [x] Import: file picker, parse JSON, validate shape, merge-by-id (default)
+- [x] Export/Import buttons in Library view
+- [x] Format documented in storage.js header
 
 ---
 
@@ -231,14 +231,14 @@ motifs. Full M3 content work comes after the training loop is solid.
       automatic (no `import React`). Added before porting the analyzer so the
       port could be test-first.
 
-## Open questions (decide at the relevant milestone)
+## Open questions (resolved)
 
-- [ ] **M3** — motif example provenance: hand-author vs. Lichess DB
-- [ ] **M3** — what to do with the user-provided FEN
-      `K7/4R3/3r4/p7/1k6/3Pb3/2B5/8 b` (false-pattern drill? drop?)
-- [ ] **M4** — Stage 1 entry UI: click-to vs. typed
-- [ ] **M4** — Stage 2 opponent reply: fresh search vs. precomputed PV
-- [ ] **M4** — Stage 0 placement: every-session vs. first-encounter-only
+- [x] **M3** — motif example provenance: hand-authored. Decided 2026-07-24.
+- [x] **M3** — user-provided FEN `K7/4R3/3r4/p7/1k6/3Pb3/2B5/8 b`: dropped
+      (not a clean tactic). Decided 2026-07-24.
+- [x] **M4** — Stage 1 entry UI: click-to-move. Decided 2026-07-24.
+- [x] **M4** — Stage 2 opponent reply: fresh engine search. Decided 2026-07-24.
+- [x] **M4** — Stage 0 placement: every session. Decided 2026-07-24.
 
 ---
 

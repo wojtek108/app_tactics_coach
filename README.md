@@ -66,27 +66,23 @@ touching anything chess-logic-related.
 
 ## Current status
 
-M1 (Vite + Preact scaffold) is **complete**. M2 (Cburnett piece theme) is
-**complete**. M4 (Socratic Train flow) is **complete** — the full staged
-flow works: board vision journaling (Stage 0), CCT enumeration via
-click-to-move (Stage 1), candidate evaluation with engine replies
-(Stage 2), commit to the best move (Stage 3), recognition step (M5),
-and the 4-stage hint ladder as earned reveal (Stage 4).
+All milestones **complete**. The Socratic Chess Coach is a fully functional
+tactics trainer with:
 
-M5 (Recognition step) is **complete** — after finding the correct move,
-the student is asked "what kind of tactic was that?" with multiple-choice
-options before the explanation is shown.
+- **Staged Socratic flow** (M4): board vision → CCT enumeration → candidate
+  evaluation with engine replies → commit → recognition → explanation
+- **Recognition step** (M5): "What kind of tactic was that?" after finding
+  the correct move, with multiple-choice motif labeling
+- **Motifs reference** (M3): 12 tactical motifs with descriptions and mini
+  chessground diagrams. Click "Train on this position" to load examples.
+- **Position storage** (M6): save to library with motif tag and notes
+- **Attempt logging** (M7): hint count, recognition result, vision notes
+- **Library view** (M8): browse saved positions, filter by motif/needs-work,
+  sort by longest-unseen, edit/delete, train from library
+- **Export/Import** (M9): download/upload JSON backup of positions + attempts
 
-M3 (Motifs reference) is **complete** — 12 tactical motifs with
-descriptions and mini chessground diagrams. Click "Train on this position"
-to load the example into the training flow.
-
-M6 (Position storage) is **complete** — save to library with motif tag
-and notes. M7 (Attempt logging) is **complete** — attempt history
-recorded on each save.
-
-Still to do: the Library tab (M8 — browsing saved positions), export/import
-(M9), and mobile-responsive layout.
+Stack: Preact + Vite + chessground + chess.js + Stockfish 10. 22 tests.
+Zero external services — runs entirely in the browser.
 
 The **"Using it"** flow below describes the current UX. The `prototype/`
 has the full jQuery-based v0.1 for reference.
