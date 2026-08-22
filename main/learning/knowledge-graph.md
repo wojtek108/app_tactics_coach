@@ -112,18 +112,18 @@
 
 | Concept | Status | Depends on | Evidence | Date |
 |---------|--------|------------|----------|------|
-| Git basics (commit, branch) | seed | - | | |
-| Git status awareness | seed | Git | Repo has uncommitted React deletions, old-version/ untracked | 2025-08-17 |
+| Git basics (commit, branch) | practicing | - | Made baseline commit with staged deletions and new Python app | 2025-08-19 | |
+| Git status awareness | practicing | Git | Used git status and git add -n dry run to verify .env exclusion before committing | 2025-08-19 |
 | Git history cleanup | seed | Git | Old React files still in history (noted in project.md) | 2025-08-17 |
 
 ### Environment & configuration
 
 | Concept | Status | Depends on | Evidence | Date |
 |---------|--------|------------|----------|------|
-| Environment variables | seed | Shell, OS | | |
-| .env files | seed | Environment variables | | |
+| Environment variables | introduced | Shell, OS | Named .env as a security risk for git — keys stay in git history forever | 2025-08-19 | |
+| .env files | introduced | Environment variables | Understood it holds runtime config (API keys, provider), loaded by python-dotenv on startup | 2025-08-19 | |
 | API key security | seed | Environment variables | | |
-| Virtual environments | seed | Python | | |
+| Virtual environments | practicing | Python | Created fresh venv with uv, explained why the polluted one was a problem | 2025-08-19 | |
 
 ### Testing
 

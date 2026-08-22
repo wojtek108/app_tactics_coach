@@ -20,7 +20,11 @@ These were chosen by the AI that built the app. You inherit them — the goal is
 
 ---
 
-### Section 1 — Make the ground solid
+### Section 1 — Make the ground solid ✅
+
+- [x] Clean venv + pyproject.toml with uv
+- [x] Verify app runs end-to-end
+- [x] .gitignore + git baseline commit
 
 **Goal:** Your project can never be lost again.
 
