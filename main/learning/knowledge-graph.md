@@ -15,8 +15,8 @@
 | Concept | Status | Depends on | Evidence | Date |
 |---------|--------|------------|----------|------|
 | FEN notation (Forsyth-Edwards Notation) | seed | - | | |
-| Standard Algebraic Notation (SAN) | introduced | FEN | Recognized multiple notations exist, gave example `Ng1-f3` | 2025-08-17 |
-| Coordinate notation (e.g., `Ng1-f3`) | introduced | SAN | Gave as example of different notation type | 2025-08-17 |
+| Standard Algebraic Notation (SAN) | introduced | FEN | Recognized multiple notations exist, gave example `Ng1-f3` | 2026-08-17 |
+| Coordinate notation (e.g., `Ng1-f3`) | introduced | SAN | Gave as example of different notation type | 2026-08-17 |
 | UCI notation (Universal Chess Interface) | seed | SAN | | |
 | Chess move legality | seed | SAN, UCI, board state | | |
 | Tactical themes (pin, fork, skewer, etc.) | seed | Chess rules | | |
@@ -43,7 +43,7 @@
 
 | Concept | Status | Depends on | Evidence | Date |
 |---------|--------|------------|----------|------|
-| Stockfish | introduced | Chess rules, engine protocol | Recognized engine_service.py is connected to Stockfish and does evaluation | 2025-08-17 |
+| Stockfish | introduced | Chess rules, engine protocol | Recognized engine_service.py is connected to Stockfish and does evaluation | 2026-08-17 |
 | Engine protocol (UCI) | seed | Stockfish | | |
 | Position analysis (depth, time limits) | seed | Stockfish | | |
 | Engine evaluation (centipawns, mate scores) | seed | Stockfish | | |
@@ -80,7 +80,7 @@
 | SQLite | seed | Database | | |
 | Models and relationships | seed | SQLAlchemy | | |
 | Database seeding | seed | SQLAlchemy | | |
-| Frozen code (unused features) | introduced | Code reading | Correctly spotted database.py is not used during chat | 2025-08-17 |
+| Frozen code (unused features) | introduced | Code reading | Correctly spotted database.py is not used during chat | 2026-08-17 |
 
 ---
 
@@ -112,24 +112,24 @@
 
 | Concept | Status | Depends on | Evidence | Date |
 |---------|--------|------------|----------|------|
-| Git basics (commit, branch) | practicing | - | Made baseline commit with staged deletions and new Python app | 2025-08-19 | |
-| Git status awareness | practicing | Git | Used git status and git add -n dry run to verify .env exclusion before committing | 2025-08-19 |
-| Git history cleanup | seed | Git | Old React files still in history (noted in project.md) | 2025-08-17 |
+| Git basics (commit, branch) | practicing | - | Made baseline commit with staged deletions and new Python app | 2026-08-19 | |
+| Git status awareness | practicing | Git | Used git status and git add -n dry run to verify .env exclusion before committing | 2026-08-19 |
+| Git history cleanup | seed | Git | Old React files still in history (noted in project.md) | 2026-08-17 |
 
 ### Environment & configuration
 
 | Concept | Status | Depends on | Evidence | Date |
 |---------|--------|------------|----------|------|
-| Environment variables | introduced | Shell, OS | Named .env as a security risk for git — keys stay in git history forever | 2025-08-19 | |
-| .env files | introduced | Environment variables | Understood it holds runtime config (API keys, provider), loaded by python-dotenv on startup | 2025-08-19 | |
+| Environment variables | introduced | Shell, OS | Named .env as a security risk for git — keys stay in git history forever | 2026-08-19 | |
+| .env files | introduced | Environment variables | Understood it holds runtime config (API keys, provider), loaded by python-dotenv on startup | 2026-08-19 | |
 | API key security | seed | Environment variables | | |
-| Virtual environments | practicing | Python | Created fresh venv with uv, explained why the polluted one was a problem | 2025-08-19 | |
+| Virtual environments | practicing | Python | Created fresh venv with uv, explained why the polluted one was a problem | 2026-08-19 | |
 
 ### Testing
 
 | Concept | Status | Depends on | Evidence | Date |
 |---------|--------|------------|----------|------|
-| Automated testing | seed | - | Only manual test scripts exist (test_loop.py, test_zai.py) | 2025-08-17 |
+| Automated testing | seed | - | Only manual test scripts exist (test_loop.py, test_zai.py) | 2026-08-17 |
 | Test-driven development | seed | Automated testing | | |
 
 ### Deployment
@@ -138,7 +138,7 @@
 |---------|--------|------------|----------|------|
 | Local development server | seed | uvicorn | | |
 | Production deployment | seed | Deployment | | |
-| Process scaling (multi-worker) | seed | Deployment | Engine process lifecycle issue noted in code | 2025-08-17 |
+| Process scaling (multi-worker) | seed | Deployment | Engine process lifecycle issue noted in code | 2026-08-17 |
 
 ---
 
