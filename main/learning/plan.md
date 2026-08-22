@@ -97,6 +97,6 @@ These were chosen by the AI that built the app. You inherit them — the goal is
 
 ## Notes
 
-- **Coaching quality is weak.** The current model (glm-4.7 via Z.ai) hallucinates board state (e.g., misidentifying piece squares). This is a model-quality issue, not a code bug. The code passes the correct FEN and tools. Likely fix: switch `COACH_PROVIDER` to `anthropic` (Claude) or test a stronger Z.ai model. Should be evaluated before or during Section 2 — an app that misleads the user about the board is worse than no app.
+- **Coaching quality is a blocker.** The current model (glm-4.7 via Z.ai) doesn't just hallucinate squares — it fundamentally fails to understand tactical lines, misleads the user, and gives poor coaching. This isn't a code bug; the code correctly passes the FEN, engine analysis, and verification tools. The model is too weak for this task. Fix: switch `COACH_PROVIDER` to `anthropic` (Claude) and test. This should be evaluated **before** Section 2 — there's no point persisting sessions to a database if the coaching itself is broken.
 - The PRD (`chess-tactics-coach-prd.md`) exists in the repo and describes the full original vision including a dashboard with per-tag stats, PGN upload, and more. Those are candidates for future sections — not invented here, recorded as they were written.
 - Section 4 is deliberately vague — the right frontend choice depends on what you've learned by the time you get there.
