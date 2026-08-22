@@ -34,3 +34,10 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets                                                                                                                           
+.env                                                                                                                                
+                                                                                                                                       
+# Runtime database                                                                                                                  
+chess_coach.db
+

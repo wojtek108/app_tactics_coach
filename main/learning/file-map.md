@@ -1,0 +1,111 @@
+# Chess Tactics Coach — File Map
+
+**Status legend:**
+- `known` — explained in probes (you demonstrated understanding)
+- `parked` — not yet probed; scheduled for later
+- `generated` — machine-made; never edit, always rebuildable
+
+---
+
+## Core app (`chess_coach_v2/`)
+
+### `main.py` — parked → [[FastAPI]], [[web-framework]], [[session-management]], [[Socratic-coaching]], [[chess-board-state]]
+
+**Why it exists:** The main server that runs everything. Sets up the FastAPI app, handles HTTP requests, manages in-memory game sessions, and orchestrates the coaching loop between the user, Stockfish, and the LLM.
+
+Key routes: `/analyze`, `/session/start`, `/chat`. The `/chat` route is the heart of the app — it parses the user's move, checks it against Stockfish, calls the LLM coach with verification tools, and advances the board state.
+
+---
+
+### `engine_service.py` — parked → [[Stockfish]], [[chess-engine]], [[position-analysis]], [[structural-signals]], [[material-evaluation]]
+
+**Why it exists:** Wraps the Stockfish chess engine. Keeps a single persistent engine process alive, analyzes positions to find the best move, refutes wrong moves, and detects tactical patterns (hanging pieces, pins, undervalued targets).
+
+Used by `main.py` on every chat turn to know what's actually a good move.
+
+---
+
+### `llm_client.py` — parked → [[LLM]], [[Anthropic]], [[OpenAI-compatible]], [[tool-calling]], [[provider-abstraction]]
+
+**Why it exists:** A provider-agnostic LLM client that works with both Anthropic and OpenAI-compatible APIs (Z.ai). Normalizes tool calling so `main.py` doesn't need to care which provider you're using.
+
+Two classes: `AnthropicClient` (native SDK) and `ZaiClient` (OpenAI-compatible). Both implement `LLMClient` with `call()` and `format_tool_results()`.
+
+---
+
+### `database.py` — parked → [[SQLAlchemy]], [[ORM]], [[SQLite]], [[frozen-feature]]
+
+**Why it exists:** SQLAlchemy models for positions, sessions, turns, and tags. Tables are created at startup and tags are seeded, but the chat route doesn't actually write to them — it uses in-memory sessions instead.
+
+Status: frozen. Exists but not in active use.
+
+---
+
+### `static/index.html` — parked → [[HTML]], [[JavaScript]], [[cm-chessboard]], [[frontend]], [[board-visualization]]
+
+**Why it exists:** The single-page frontend. Uses the cm-chessboard library to draw the board, handles FEN input and chat UI, and makes fetch calls to `/session/start` and `/chat`.
+
+232 lines. No build step — served directly as a static file.
+
+---
+
+### `.env` — parked → [[environment-variables]], [[API-keys]], [[configuration]]
+
+**Why it exists:** Holds API keys and LLM provider settings. Example: `COACH_PROVIDER=zai`, `ANTHROPIC_API_KEY=...`, `ZAI_API_KEY=...`.
+
+Do not commit this to git.
+
+---
+
+### `start.sh` — parked → [[shell-script]], [[uvicorn]], [[server-startup]]
+
+**Why it exists:** Convenience script to start the server. Runs `uvicorn main:app` with the right host, port, reload, and env-file options.
+
+Run with `./start.sh`.
+
+---
+
+## Generated directories
+
+### `__pycache__/` — generated → [[Python-cache]]
+Python bytecode cache. Machine-made, never edit.
+
+### `.venv/` — generated → [[virtual-environment]]
+Python virtual environment. Machine-made, recreate with `python -m venv .venv`.
+
+---
+
+## Frozen files
+
+### `chess_coach.db` — parked → [[SQLite-database-file]], [[frozen-feature]]
+SQLite database file. Gets created with tables and tags but never written to during chat.
+
+---
+
+### `test_loop.py` — parked → [[testing]], [[manual-testing]], [[frozen-feature]]
+Manual test script. Not a proper test suite.
+
+---
+
+### `test_zai.py` — parked → [[testing]], [[manual-testing]], [[frozen-feature]]
+Manual test script. Not a proper test suite.
+
+---
+
+### `server.log` — parked → [[logging]], [[server-logs]]
+Server log file (if present).
+
+---
+
+## Parking lot (archived)
+
+### `../old-version/` — parked → [[archived-code]]
+Old React/Vite version. Preserved, not deleted. Not part of the active Python app.
+
+---
+
+## Git status
+
+- Git exists, branch `main`, up to date with `origin/main`
+- Uncommitted changes: many deleted React-era files (moved to `../old-version/`), untracked `./` and `../old-version/`
+- Not committed yet: `learning/` directory, new Python app

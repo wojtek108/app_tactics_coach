@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chess Tactics Coach</title>
+  <!-- Fixed: real CSS path is assets/styles/cm-chessboard.css, not assets/chessboard.css (verified: old path 404s) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@4/assets/styles/cm-chessboard.css">
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 20px; background: #121212; color: #e0e0e0; }
+    .container { display: flex; gap: 20px; max-width: 1100px; margin: 0 auto; }
+    .board-section { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+    .chat-section { flex: 1; display: flex; flex-direction: column; height: 600px; border: 1px solid #333; border-radius: 8px; background: #1e1e1e; }
+    #board { width: 100%; max-width: 500px; aspect-ratio: 1; }
+    .chat-history { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .msg { padding: 10px 14px; border-radius: 6px; max-width: 85%; font-size: 0.95rem; line-height: 1.4; }
+    .msg.assistant { background: #2a2d32; align-self: flex-start; border-left: 3px solid #4a90e2; }
+    .msg.user { background: #1a3a5c; align-self: flex-end; }
+    .chat-input-area { display: flex; padding: 10px; border-top: 1px solid #333; background: #181818; }
+    .chat-input-area input { flex: 1; padding: 10px; border: 1px solid #444; border-radius: 4px; background: #222; color: #fff; }
+    .chat-input-area button { padding: 10px 16px; margin-left: 8px; border: none; background: #4a90e2; color: #fff; border-radius: 4px; cursor: pointer; }
+    .fen-bar { display: flex; gap: 8px; margin-bottom: 15px; }
+    .fen-bar input { flex: 1; padding: 8px; border: 1px solid #444; border-radius: 4px; background: #222; color: #fff; }
+    .fen-bar button { padding: 8px 14px; border: none; background: #4a90e2; color: #fff; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+    .fen-bar button:hover { background: #3a7bc8; }
+    /* Removed: the old ".square.highlight" rule targeted a selector that
+       doesn't exist in cm-chessboard's rendered markup. Markers render
+       via the library's own "marker-square" class + SVG sprite slice
+       (verified in source: MARKER_TYPE.square = {class: "marker-square",
+       slice: "markerSquare"}). Styling it here just tints that marker
+       instead of inventing a parallel highlight system. */
+    .cm-chessboard .marker-square { opacity: 0.55; }
+  </style>
+</head>
+<body>
+
+  <script>
+    // Runs as a normal (non-module) script, so it executes even when the
+    // page is opened via file:// -- unlike the type="module" script below,
+    // which the browser silently refuses to run in that case (remote
+    // imports are blocked under a file:// origin). This is the only way
+    // to surface a warning for that failure mode instead of every button
+    // just quietly doing nothing.
+    if (location.protocol === "file:") {
+      document.write(
+        '<div style="background:#5c1a1a;color:#fff;padding:12px 16px;font-family:system-ui,sans-serif;">' +
+        '⚠️ This page was opened directly as a file and will not work. ' +
+        'It needs to be served over HTTP by the backend (e.g. <code>uvicorn main:app</code>, ' +
+        'then visit <code>http://localhost:8000/</code>) -- browsers block the chessboard ' +
+        'library and API calls when opened via file://.' +
+        '</div>'
+      );
+    }
+  </script>
+
+  <div class="fen-bar">
+    <input type="text" id="fenInput" placeholder="Paste FEN position..." />
+    <button onclick="loadPosition()">Load & Analyze</button>
+    <button id="rotateBtn" onclick="rotateBoard()" title="Flip board orientation">⇅ Rotate</button>
+  </div>
+
+  <div class="container">
+    <div class="board-section">
+      <div id="board"></div>
+    </div>
+
+    <div class="chat-section">
+      <div class="chat-history" id="chatHistory">
+        <div class="msg assistant">Paste a FEN above to begin the session.</div>
+      </div>
+      <div class="chat-input-area">
+        <input type="text" id="userInput" placeholder="Type your answer..." onkeydown="if(event.key==='Enter') sendMessage()" />
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // Import path/exports (Chessboard, COLOR, MARKER_TYPE) verified against
+    // the actual cm-chessboard 4.5.8 source pulled from the npm registry --
+    // these ARE real named exports in this version, confirmed by grep.
+    import { Chessboard, MARKER_TYPE, COLOR } from "https://cdn.jsdelivr.net/npm/cm-chessboard@4/src/cm-chessboard/Chessboard.js"
+
+    // If this page was opened directly (file://) instead of served over
+    // HTTP, module imports from a remote URL are blocked by the browser
+    // outright -- this whole <script type="module"> block would never run,
+    // silently leaving every button dead with no visible error. Since that
+    // failure mode can't be caught from inside the blocked script, this
+    // check lives in the page's <head> instead (see below) so it always runs.
+
+    let board = new Chessboard(document.getElementById("board"), {
+      position: "start",
+      // Fixed: "assetsUrl" is not a real constructor option in this
+      // version (zero matches in source). Sprite location is configured
+      // via the "sprite" prop instead.
+      sprite: {
+        url: "https://cdn.jsdelivr.net/npm/cm-chessboard@4/assets/images/chessboard-sprite.svg"
+      }
+    });
+
+    let currentSession = null;
+
+    window.loadPosition = async function() {
+      const fen = document.getElementById("fenInput").value.trim();
+      if (!fen) return;
+
+      try {
+        board.setPosition(fen);
+
+        const res = await fetch("/session/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fen })
+        });
+
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody.detail || `Server returned ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        currentSession = {
+          session_id: data.session_id,
+          history: []  // conversation TEXT history only -- the board state
+                        // itself now lives server-side, keyed by session_id
+        };
+
+        document.getElementById("chatHistory").innerHTML = `
+          <div class="msg assistant">Position loaded. What do you notice about this position?</div>
+        `;
+      } catch (err) {
+        // Previously a failure here (bad FEN, server down, etc.) left
+        // currentSession null with no feedback at all -- the chat panel
+        // just stayed on its placeholder text and Send silently no-opped
+        // forever, with no indication anything had gone wrong.
+        currentSession = null;
+        document.getElementById("chatHistory").innerHTML = `
+          <div class="msg assistant">⚠️ Couldn't analyze that position: ${escapeHtml(err.message)}</div>
+        `;
+        console.error("loadPosition failed:", err);
+      }
+    };
+
+    window.sendMessage = async function() {
+      const input = document.getElementById("userInput");
+      const text = input.value.trim();
+      if (!text) return;
+
+      if (!currentSession) {
+        appendMsg("assistant", "Paste a FEN and click \"Load & Analyze\" first.");
+        return;
+      }
+
+      appendMsg("user", text);
+      input.value = "";
+
+      try {
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            session_id: currentSession.session_id,
+            user_message: text,
+            conversation_history: currentSession.history
+          })
+        });
+
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody.detail || `Server returned ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        currentSession.history.push({ role: "user", content: text });
+        currentSession.history.push({ role: "assistant", content: data.assistant_reply });
+
+        appendMsg("assistant", data.assistant_reply);
+
+        // The board may have advanced by up to two plies (student's move +
+        // auto-played opponent reply) -- redraw from the FEN the server
+        // sends back rather than assuming nothing moved.
+        if (data.fen) {
+          board.setPosition(data.fen, true);
+        }
+
+        if (data.line_complete) {
+          appendMsg("assistant", "🏁 Line complete -- nice work solving the combination.");
+        }
+
+        // Fixed: addMarker's real signature is (square, type) -- square
+        // first. The previous version called addMarker(MARKER_TYPE.square, sq),
+        // which passes them in the wrong order (verified against source).
+        board.removeMarkers();
+        if (data.highlight_squares) {
+          data.highlight_squares.forEach(sq => {
+            board.addMarker(sq, MARKER_TYPE.square);
+          });
+        }
+      } catch (err) {
+        appendMsg("assistant", `⚠️ Something went wrong: ${err.message}`);
+        console.error("sendMessage failed:", err);
+      }
+    };
+
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    window.rotateBoard = async function() {
+      // Verified against source: setOrientation(color, animated) is async
+      // and expects COLOR.white ("w") or COLOR.black ("b"); getOrientation()
+      // returns the current one so this just flips it.
+      const current = board.getOrientation();
+      const next = current === COLOR.white ? COLOR.black : COLOR.white;
+      await board.setOrientation(next, true);
+    };
+
+    function appendMsg(role, text) {
+      const history = document.getElementById("chatHistory");
+      const div = document.createElement("div");
+      div.className = `msg ${role}`;
+      div.textContent = text;
+      history.appendChild(div);
+      history.scrollTop = history.scrollHeight;
+    }
+  </script>
+</body>
+</html>

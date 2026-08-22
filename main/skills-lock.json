@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "skills": {
+    "adopt-project": {
+      "source": "jasonku09/altitude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/adopt-project/SKILL.md",
+      "computedHash": "bebd735cae0e0c59f197e01b720d0fe72d2f9ba81c94aea4b8949712c5055762"
+    },
+    "begin": {
+      "source": "jasonku09/altitude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/begin/SKILL.md",
+      "computedHash": "bc903ab5a1dca1196e281592a4d2f9512a5a24f6cf1f10e049bcc621b5da9665"
+    },
+    "connect": {
+      "source": "jasonku09/altitude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/connect/SKILL.md",
+      "computedHash": "0f71bee07ea1e5fb07eedd472859d4482e6c62eada7c35c8b7534509bf3d1477"
+    },
+    "next-lesson": {
+      "source": "jasonku09/altitude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/next-lesson/SKILL.md",
+      "computedHash": "68ea4c9fa5d61092fc61554b866788c28ef14b8b3152dd69503a03762a56359a"
+    },
+    "plan-journey": {
+      "source": "jasonku09/altitude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/plan-journey/SKILL.md",
+      "computedHash": "d6782f2ba2b1504539c99a1449e848f4f121d121bed4094d91e51cf26018c41a"
+    },
+    "start-project": {
+      "source": "jasonku09/altitude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/start-project/SKILL.md",
+      "computedHash": "d94e99371d265504a4a71dacee933b8a6118a35e910aabe084918aa2eda4c705"
+    },
+    "status": {
+      "source": "jasonku09/altitude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/status/SKILL.md",
+      "computedHash": "0fcb64193256409dd03e6992574fb52fb8b95c18a0187bf29aa7936c4a9cf998"
+    }
+  }
+}

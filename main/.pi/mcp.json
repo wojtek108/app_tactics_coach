@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "you-search": {
+      "url": "https://api.you.com/mcp?profile=free",
+      "directTools": true
+    }
+  }
+}
