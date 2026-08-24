@@ -30,6 +30,7 @@ class GameSession:
     board: chess.Board
     student_color: bool  # chess.WHITE or chess.BLACK -- whichever side was "to move" at load time
     history: List[PlyRecord] = field(default_factory=list)
+    messages: List[Dict[str, Any]] = field(default_factory=list)
     max_student_plies: int = 6
 
 
@@ -86,7 +87,6 @@ class StartSessionResponse(BaseModel):
 class ChatRequest(BaseModel):
     session_id: str
     user_message: str
-    conversation_history: List[Dict[str, str]]
 
 
 class ChatResponse(BaseModel):
@@ -325,6 +325,9 @@ async def handle_chat_turn(
         "fen_before_this_turn": current_fen,
         "fen_after_this_turn": board.fen(),
         "best_move_san": best_move_san,
+        "eval_cp_white_pov": analysis.get("eval_cp_white_pov"),
+        "multipv": analysis.get("multipv", []),
+        "structural_signals": analysis.get("structural_signals", {}),
         "user_solved_this_turn": user_solved,
         "candidate_move_detected": candidate_move_san,
         "candidate_move_was_natural_language": used_nl_fallback,
@@ -392,7 +395,7 @@ async def handle_chat_turn(
         },
     ]
 
-    def execute_tool(tool_name: str, tool_input: Dict[str, Any]) -> Any:
+    async def execute_tool(tool_name: str, tool_input: Dict[str, Any]) -> Any:
         """Executes a verification tool against a SCRATCH COPY of the
         current board -- never the real session board. This boundary
         matters: exploring 'what if I play X' must never actually commit
@@ -420,33 +423,41 @@ async def handle_chat_turn(
                 return {"legal": False, "error": str(e)}
             material_before = material_balance_white_pov(scratch)
             scratch.push(move)
-            return {
+            result = {
                 "legal": True,
                 "gives_check": scratch.is_check(),
                 "resulting_fen": scratch.fen(),
                 "material_balance_white_pov_cp": material_balance_white_pov(scratch),
                 "material_swing_from_this_move_cp": material_balance_white_pov(scratch) - material_before,
             }
+            # Run a real engine search on the resulting position so the
+            # model can answer "does this move actually work?" with
+            # engine-backed eval, not just static material math.
+            refutation = await engine_svc.refute_move(board.fen(), move_san)
+            if refutation:
+                result["engine_eval_after_move_cp_white_pov"] = refutation.get("eval_cp_white_pov")
+                result["engine_best_reply_san"] = refutation.get("refutation_move_san")
+            return result
 
         return {"error": f"unknown tool '{tool_name}'"}
 
-    messages = payload.conversation_history + [
-        {
-            "role": "user",
-            "content": f"[Engine Context: {json.dumps(prompt_context)}]\nStudent: {payload.user_message}",
-        }
-    ]
+    # Append the user's message (with engine context) to server-side history.
+    session.messages.append({
+        "role": "user",
+        "content": f"[Engine Context: {json.dumps(prompt_context)}]\nStudent: {payload.user_message}",
+    })
 
     coach_client = build_client_from_env("coach")
 
     final_reply_text = None
     final_highlights: List[str] = []
     MAX_TOOL_ITERATIONS = 5
+    final_raw_assistant_message = None
 
     for _ in range(MAX_TOOL_ITERATIONS):
         result = await coach_client.call(
             system=system_prompt,
-            messages=messages,
+            messages=session.messages,
             tools=tools,
         )
 
@@ -455,23 +466,28 @@ async def handle_chat_turn(
             # respond_with_coaching -- shouldn't normally happen since the
             # system prompt asks for it, but don't crash if it does.
             final_reply_text = result.text or "Let's keep going -- what do you see?"
+            final_raw_assistant_message = result.raw_assistant_message
             break
 
         respond_call = next((tc for tc in result.tool_calls if tc.name == "respond_with_coaching"), None)
         if respond_call:
             final_reply_text = respond_call.input.get("response_text", "")
             final_highlights = respond_call.input.get("highlight_squares", [])
+            final_raw_assistant_message = result.raw_assistant_message
             break
 
-        # Otherwise it called one or more verification tools -- execute
-        # them all and feed results back for the next iteration.
-        tool_results = [execute_tool(tc.name, tc.input) for tc in result.tool_calls]
-        messages.append(result.raw_assistant_message)
-        messages.extend(coach_client.format_tool_results(result.tool_calls, tool_results))
+        # Otherwise it called verification tools -- execute and feed back.
+        tool_results = [await execute_tool(tc.name, tc.input) for tc in result.tool_calls]
+        session.messages.append(result.raw_assistant_message)
+        session.messages.extend(coach_client.format_tool_results(result.tool_calls, tool_results))
     else:
         # Hit the iteration cap without a final reply -- fail safe rather
         # than loop forever on a confused model.
         final_reply_text = "Sorry, I got a bit stuck verifying that -- could you rephrase or try a specific move?"
+
+    # Persist the final assistant message so the next turn sees it.
+    if final_raw_assistant_message:
+        session.messages.append(final_raw_assistant_message)
 
     return ChatResponse(
         assistant_reply=final_reply_text,

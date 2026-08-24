@@ -122,8 +122,6 @@
 
         currentSession = {
           session_id: data.session_id,
-          history: []  // conversation TEXT history only -- the board state
-                        // itself now lives server-side, keyed by session_id
         };
 
         document.getElementById("chatHistory").innerHTML = `
@@ -162,7 +160,6 @@
           body: JSON.stringify({
             session_id: currentSession.session_id,
             user_message: text,
-            conversation_history: currentSession.history
           })
         });
 
@@ -172,9 +169,6 @@
         }
 
         const data = await res.json();
-
-        currentSession.history.push({ role: "user", content: text });
-        currentSession.history.push({ role: "assistant", content: data.assistant_reply });
 
         appendMsg("assistant", data.assistant_reply);
 

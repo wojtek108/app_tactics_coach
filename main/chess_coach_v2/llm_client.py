@@ -185,6 +185,8 @@ class ZaiClient(LLMClient):
 
         response = await self.client.chat.completions.create(**kwargs)
         message = response.choices[0].message
+        print(f"[DEBUG] model={self.model} content={message.content!r} "
+              f"tool_calls={message.tool_calls!r} extra_fields={message.model_extra!r}")
 
         tool_calls = []
         if message.tool_calls:

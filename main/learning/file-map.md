@@ -15,6 +15,8 @@
 
 Key routes: `/analyze`, `/session/start`, `/chat`. The `/chat` route is the heart of the app — it parses the user's move, checks it against Stockfish, calls the LLM coach with verification tools, and advances the board state.
 
+**Redesigned 2026-08-24 (own tool session, see `GRILLING_SESSION.md`):** `GameSession` gained a `messages` list — conversation history is now server-owned instead of round-tripped from the frontend. `prompt_context` now carries full engine analysis (`eval_cp_white_pov`, `multipv`, `structural_signals`), not just a bare `best_move_san`. `try_hypothetical_move` now calls `engine_svc.refute_move()` for a real engine-backed answer. These three pieces have been probed and explained — the rest of the file is still parked.
+
 ---
 
 ### `engine_service.py` — parked → [[Stockfish]], [[chess-engine]], [[position-analysis]], [[structural-signals]], [[material-evaluation]]
@@ -31,6 +33,8 @@ Used by `main.py` on every chat turn to know what's actually a good move.
 
 Two classes: `AnthropicClient` (native SDK) and `ZaiClient` (OpenAI-compatible). Both implement `LLMClient` with `call()` and `format_tool_results()`.
 
+**Currently has a temporary debug `print(...)` in `ZaiClient.call()`** (added 2026-08-23 to diagnose the glm-5.1 coaching bug — see `plan.md` Notes). Remove once that's resolved.
+
 ---
 
 ### `database.py` — parked → [[SQLAlchemy]], [[ORM]], [[SQLite]], [[frozen-feature]]
@@ -46,6 +50,8 @@ Status: frozen. Exists but not in active use.
 **Why it exists:** The single-page frontend. Uses the cm-chessboard library to draw the board, handles FEN input and chat UI, and makes fetch calls to `/session/start` and `/chat`.
 
 232 lines. No build step — served directly as a static file.
+
+**Changed 2026-08-24:** no longer sends `conversation_history` in the `/chat` request body — the server owns it now (see `main.py` above).
 
 ---
 
@@ -121,8 +127,26 @@ Old React/Vite version. Preserved, not deleted. Not part of the active Python ap
 
 ---
 
+## Documentation you wrote
+
+### `HANDOFF.md` — known → [[project-architecture]]
+Architecture/tech-stack writeup covering the whole coaching loop end to end. You wrote this yourself in another tool session — authorship counts as evidence.
+
+### `GRILLING_SESSION.md` — known → [[Conversation history (server-owned, unbounded growth)]], [[Structural signals (hanging pieces, undervalued targets)]], [[Refutation analysis]]
+Decision log for the 2026-08-24 redesign: problems identified, six settled Q&As, and the implementation plan that `main.py`/`llm_client.py`/`static/index.html` now reflect. You wrote this yourself — authorship counts as evidence.
+
+---
+
+## External tooling (not part of the app)
+
+### `.pi/` — parked → —
+Skill files and MCP config from a different coding tool you used to run this same learning method (mirrors `next-lesson`, `plan-journey`, `begin`, etc.). Not part of the chess app itself — noting it so it's not a mystery box, not touring it.
+
+---
+
 ## Git status
 
 - Git exists, branch `main`, up to date with `origin/main`
-- Uncommitted changes: many deleted React-era files (moved to `../old-version/`), untracked `./` and `../old-version/`
-- Not committed yet: `learning/` directory, new Python app
+- Uncommitted changes: `chess_coach_v2/llm_client.py`, `chess_coach_v2/main.py`, `chess_coach_v2/static/index.html`, `learning/*`
+- Untracked: `.pi/skills/`, `GRILLING_SESSION.md`, `HANDOFF.md`
+- Not yet committed: the 2026-08-24 coaching-data-flow redesign, and the debug print in `llm_client.py` from the still-open glm-5.1 investigation
