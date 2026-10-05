@@ -1,5 +1,7 @@
 # Chess Tactics Coach — Knowledge Graph
 
+> **2026-08-30: adoption pivoted to `chess_coach_v3`.** Entries below reflect evidence from `chess_coach_v2` — still valid as history, but `chess_coach_v3` is a rewrite and its concepts need their own evidence, not inherited automatically. Re-probing is in progress; see the note in `file-map.md` and the bookmark in `plan.md`'s Notes for the exact resume point.
+
 **Status legend:**
 - `seed` — haven't touched this yet
 - `introduced` — discussed today, surface-level
@@ -47,21 +49,22 @@
 | Engine protocol (UCI) | seed | Stockfish | | |
 | Position analysis (depth, time limits) | seed | Stockfish | | |
 | Engine evaluation (centipawns, mate scores) | seed | Stockfish | | |
-| Persistent engine process | seed | Stockfish, async | | |
+| Persistent engine process | introduced | Stockfish, async | v3 probe, partial: guessed persistent process avoids repeated setup (right instinct, named memory not startup cost) but missed the real cost — a dead persistent process stays dead, which is why `_analyse_with_retry` exists. Refresher given; follow-up (why not check-alive first) drew "beats me" — refresher on false-confidence checks delivered | 2026-08-30 | |
 | Refutation analysis | introduced | Stockfish | Wired `refute_move` into `try_hypothetical_move` (own tool session); correctly generalized the app's core pattern — engine computes tactical facts, LLM only explains them — and applied it to this tool unprompted | 2026-08-24 |
+| Engine-computes/LLM-explains (v3 probe) | practicing | Stockfish, LLM client | v3 adoption probe passed unprompted: stated that with the coach LLM fully down, the app still knows whether the move was right (Python comparison vs Stockfish) — it just can't communicate the coaching | 2026-08-30 |
 
 ### LLM integration
 
 | Concept | Status | Depends on | Evidence | Date |
 |---------|--------|------------|----------|------|
-| LLM client abstraction | introduced | Python, HTTP | Walked `build_client_from_env`'s role param (coach/nl_interpreter) and the two client classes | 2026-08-23 |
+| LLM client abstraction | practicing | Python, HTTP | Walked `build_client_from_env`'s role param and the two client classes (2026-08-23). v3 probe: explained what main.py would have to do without it (call + know which provider, routing logic in main) and that a third provider would complicate main further — pass (2026-10-05) | 2026-10-05 |
 | Anthropic API | seed | LLM client | | |
 | OpenAI-compatible APIs | seed | LLM client | | |
-| Tool calling | introduced | LLM client | Traced why `respond_with_coaching` wasn't being called — model returned no tool_calls at all | 2026-08-23 |
+| Tool calling | introduced | LLM client | Traced why `respond_with_coaching` wasn't being called — model returned no tool_calls at all (2026-08-23). Review miss 2026-10-05: couldn't recall the dangling tool_use consequence; 3-sentence refresher given (stays introduced) | 2026-10-05 |
 | Provider-agnostic design | introduced | LLM client | Correctly reasoned `COACH_PROVIDER` (coaching text) vs `NL_INTERPRETER_PROVIDER` (move parsing) are separate concerns before being told | 2026-08-23 |
 | System prompts | seed | LLM client | | |
 | Conversation history (server-owned, unbounded growth) | practicing | LLM client | Redesigned `session.messages` to be server-owned in another tool's session, then explained (after one guided follow-up) that resending the full list every turn drives up both token cost and latency turn-over-turn | 2026-08-24 |
-| Reasoning/"thinking" model output (hidden reasoning tokens, separate response field) | introduced | LLM client, Tool calling | New leaf, found via debug print: glm-5.1 returns empty `content` and puts its work in `reasoning_content`, apparently exhausting `max_tokens` before answering. Diagnosis explained; hypothesis not yet tested with the learner | 2026-08-23 |
+| Reasoning/"thinking" model output (hidden reasoning tokens, separate response field) | introduced | LLM client, Tool calling | New leaf, found via debug print: glm-5.1 returns empty `content` and puts its work in `reasoning_content`, apparently exhausting `max_tokens` before answering. Diagnosis explained; hypothesis not yet tested with the learner (2026-08-23). v3 check: debug print is gone in v3's `llm_client.py`; underlying glm-5.1 behavior not re-tested | 2026-10-05 |
 
 ### App-specific backend
 

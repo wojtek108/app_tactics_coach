@@ -1,5 +1,7 @@
 # Chess Tactics Coach — File Map
 
+> **2026-08-30: adoption pivoted to `chess_coach_v3`.** Everything below still describes `chess_coach_v2` as it stood after Section 1 — kept as-is, since `chess_coach_v2/` is now parked as the fallback/cross-check (see `project.md`). A fresh Phase 2 walkthrough + file map for `chess_coach_v3/` is in progress, not started from scratch: we're mid-way through the first probe (the `/chat` route in `chess_coach_v3/main.py`) — resume with `/adopt-project`. Nothing about v3 has been probed and confirmed yet, so none of it belongs in this map until it is.
+
 **Status legend:**
 - `known` — explained in probes (you demonstrated understanding)
 - `parked` — not yet probed; scheduled for later
@@ -127,6 +129,16 @@ Old React/Vite version. Preserved, not deleted. Not part of the active Python ap
 
 ---
 
+## Documentation from other tool sessions
+
+### `bugs_to_fix.md` — known → [[tool-calling]], [[conversation-history]]
+Bug report from a different AI coding session that reviewed the 2026-08-24 redesign (commit `000c806`). Flags a real, verified bug: `respond_with_coaching` tool calls get saved into `session.messages` without a matching `tool_result`, which both Anthropic and OpenAI-compatible APIs reject on the next turn. Currently masked by the separate glm-5.1 empty-reply bug (see `plan.md` Notes) — respond_with_coaching is never actually reached right now. Fix in progress as of 2026-08-25, see bookmark in `plan.md` Notes.
+
+### `feedback_from_sonnet5.md` — known → [[project-architecture]]
+A different AI session's review of `HANDOFF.md`. Flags one open question worth checking later: whether `compare_candidate_moves` / `explore_line` tools mentioned there still exist in the current `main.py` (they weren't found during this session's read of the file, so `HANDOFF.md`'s tool list — `check_square`, `try_hypothetical_move`, `respond_with_coaching` — is what's assumed accurate for now). Not investigated further this session.
+
+---
+
 ## Documentation you wrote
 
 ### `HANDOFF.md` — known → [[project-architecture]]
@@ -146,7 +158,6 @@ Skill files and MCP config from a different coding tool you used to run this sam
 
 ## Git status
 
-- Git exists, branch `main`, up to date with `origin/main`
-- Uncommitted changes: `chess_coach_v2/llm_client.py`, `chess_coach_v2/main.py`, `chess_coach_v2/static/index.html`, `learning/*`
-- Untracked: `.pi/skills/`, `GRILLING_SESSION.md`, `HANDOFF.md`
-- Not yet committed: the 2026-08-24 coaching-data-flow redesign, and the debug print in `llm_client.py` from the still-open glm-5.1 investigation
+- Git exists, branch `main`, up to date with `origin/main`, working tree clean
+- 2026-08-24 coaching-data-flow redesign committed as `000c806` and pushed
+- Still open: the debug print in `llm_client.py` from the unresolved glm-5.1 investigation (not part of this commit's scope, still live for next debugging session)
